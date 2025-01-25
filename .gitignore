@@ -1,0 +1,10 @@
+# Data files
+*.csv
+*.xlsx
+data/
+
+# Virtual environment
+myenv/
+
+# macOS system files
+.DS_Store
