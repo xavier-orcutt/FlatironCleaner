@@ -11,15 +11,12 @@ class DataProcessorUrothelial:
         self.enhanced_df = None
         self.demographics_df = None
 
-    def process_enhanced_adv(self, file_path: str) -> pd.DataFrame:
-        # Log that we're starting to read the file
-        logging.info(f"Reading Enhanced_AdvUrothelial.csv file: {file_path}")
-    
+    def process_enhanced_adv(self, file_path: str, drop_dates: bool = True) -> pd.DataFrame: 
         try:
             df = pd.read_csv(file_path)
         
             # Log success and number of rows
-            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with {len(df)} rows and {(df.PatientID.nunique())} unique PatientIDs")
+            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
         
             # Convert categorical columns
             categorical_cols = ['PrimarySite', 
@@ -46,10 +43,12 @@ class DataProcessorUrothelial:
             df['advanced_diagnosis_year'] = pd.Categorical(df['AdvancedDiagnosisDate'].dt.year)
             df['days_diagnosis_to_surgery'] = (df['SurgeryDate'] - df['DiagnosisDate']).dt.days
     
-            # Drop date-based variables 
-            df = df.drop(columns=['AdvancedDiagnosisDate', 'DiagnosisDate', 'SurgeryDate'])
+            # Drop date-based variables if specified
+            if drop_dates:
+                df = df.drop(columns=['AdvancedDiagnosisDate', 'DiagnosisDate', 'SurgeryDate'])
+                logging.info("Date columns dropped from dataset")
 
-            logging.info("Successfully processed Enhanced_AdvUrothelial.csv file")
+            logging.info(f"Successfully processed Enhanced_AdvUrothelial.csv file with final shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
             self.enhanced_df = df
             return df
 
@@ -59,13 +58,11 @@ class DataProcessorUrothelial:
             return None
     
     def process_demographics(self, file_path: str) -> pd.DataFrame:
-        logging.info(f"Reading Demographics.csv file: {file_path}")
-    
         try:
             df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Demographics.csv file with {len(df)} rows and {(df.PatientID.nunique())} unique PatientIDs")
+            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
         
-            logging.info("Successfully processed Demographics.csv data")
+            logging.info(f"Successfully processed Demographics.csv file with final shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
             self.demographics_df = df
             return df
     
