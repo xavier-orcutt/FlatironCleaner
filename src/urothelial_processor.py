@@ -14,8 +14,6 @@ class DataProcessorUrothelial:
     def process_enhanced_adv(self, file_path: str, drop_dates: bool = True) -> pd.DataFrame: 
         try:
             df = pd.read_csv(file_path)
-        
-            # Log success and number of rows
             logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
         
             # Convert categorical columns
@@ -57,7 +55,6 @@ class DataProcessorUrothelial:
             return df
 
         except Exception as e:
-            # If any error occurs, log it and return None
             logging.error(f"Error processing Enhanced_AdvUrothelial.csv file: {e}")
             return None
     
@@ -74,20 +71,41 @@ class DataProcessorUrothelial:
             logging.error(f"Error processing Demographics.csv file: {e}")
             return None
     
-    def merge_datasets(self) -> pd.DataFrame:
-        """Merge enhanced and demographics datasets if both are loaded"""
-        if self.enhanced_df is None or self.demographics_df is None:
-            logging.error("Both datasets must be processed before merging")
+    def merge_datasets(self, *dataframes: pd.DataFrame) -> pd.DataFrame:
+        """
+        Outer merge of multiple datasets based on PatientID
+    
+        Parameters:
+        *dataframes: Variable number of pandas DataFrames to merge
+    
+        Returns:
+        pd.DataFrame: Merged dataset
+        """
+        # Check if any dataframes are provided
+        if not dataframes:
+            logging.error("No dataframes provided for merging")
             return None
-            
+        
         try:
-            merged_df = pd.merge(
-                self.enhanced_df, 
-                self.demographics_df,
-                on = 'PatientID',
-                how = 'inner'
-            )
-            logging.info(f"Successfully merged datasets. Final shape: {merged_df.shape}. There are {merged_df.PatientID.nunique()} uniuqe PatientID's")
+            # Log pre-merge information for each dataset
+            for i, df in enumerate(dataframes):
+                logging.info(f"Pre-merge unique PatientIDs in dataset {i+1}: {df.PatientID.nunique()}")
+        
+            # Start with first dataframe and merge others iteratively
+            merged_df = dataframes[0]
+        
+            for i, df in enumerate(dataframes[1:], 2):
+                merged_df = pd.merge(
+                    merged_df,
+                    df,
+                    on = 'PatientID',
+                    how = 'outer'
+                )
+                logging.info(f"After merging dataset {i}, shape: {merged_df.shape}, unique PatientIDs: {merged_df.PatientID.nunique()}")
+            
+            # Log final merge information
+            logging.info(f"Final merged dataset shape: {merged_df.shape} with {merged_df.PatientID.nunique()} unique PatientIDs")
+        
             return merged_df
             
         except Exception as e:
@@ -101,11 +119,11 @@ if __name__ == "__main__":
     demographics_file_path = "data/Demographics.csv"
     
     # Process both datasets
-    processor.process_enhanced_adv(enhanced_file_path)
-    processor.process_demographics(demographics_file_path)
+    enhanced_df = processor.process_enhanced_adv(enhanced_file_path)
+    demographics_df = processor.process_demographics(demographics_file_path)
     
     # Merge datasets
-    merged_data = processor.merge_datasets()
+    merged_data = processor.merge_datasets(enhanced_df, demographics_df)
     
     if merged_data is not None:
         print("\nFirst few rows of merged data:")
