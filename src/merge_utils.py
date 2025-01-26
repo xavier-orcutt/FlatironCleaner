@@ -6,7 +6,7 @@ logging.basicConfig(
     format = '%(asctime)s - %(levelname)s - %(message)s'  
 )
 
-def merge_dataframes(self, *dataframes: pd.DataFrame) -> pd.DataFrame:
+def merge_dataframes(*dataframes: pd.DataFrame) -> pd.DataFrame:
     """
     Outer merge of multiple datasets based on PatientID
     
@@ -19,27 +19,17 @@ def merge_dataframes(self, *dataframes: pd.DataFrame) -> pd.DataFrame:
     # Check if any dataframes are provided
     if not dataframes:
         logging.error("No dataframes provided for merging")
-        return None
         
     try:
-        # Log pre-merge information for each dataset
         for i, df in enumerate(dataframes):
-            logging.info(f"Pre-merge unique PatientIDs in dataset {i+1}: {df.PatientID.nunique()}")
+            if 'PatientID' not in df.columns:
+                raise KeyError(f"Dataset {i+1} missing PatientID column")
+            logging.info(f"Dataset {i+1} shape: {df.shape}, unique PatientIDs: {df.PatientID.nunique()}")
         
-        # Start with first dataframe and merge others iteratively
         merged_df = dataframes[0]
-        
         for i, df in enumerate(dataframes[1:], 2):
-            merged_df = pd.merge(
-                merged_df,
-                df,
-                on = 'PatientID',
-                how = 'outer'
-            )
-            logging.info(f"After merging dataset {i}, shape: {merged_df.shape}, unique PatientIDs: {merged_df.PatientID.nunique()}")
-            
-        # Log final merge information
-        logging.info(f"Final merged dataset shape: {merged_df.shape} with {merged_df.PatientID.nunique()} unique PatientIDs")
+            merged_df = pd.merge(merged_df, df, on='PatientID', how='outer')
+            logging.info(f"After merge {i-1} shape: {merged_df.shape}, unique PatientIDs {merged_df.PatientID.nunique()}")
         
         return merged_df
     

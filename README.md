@@ -5,10 +5,9 @@
 ## Overview
 
 The pipeline automates several key data processing steps:
-- Standardizes variable names across cancers
-- Ensures unique patient IDs per row
+- Standardizes variable names and data types across cancers
+- Ensures unique PatientIDs per row
 - Applies cancer-specific cleaning rules
-- Combines multiple data sources into a single cleaned dataset
-- Provides detailed logging of all transformations
+- Provides detailed logging of transformations
 
 Each cancer type can have its own specific cleaning rules defined through configuration files, while sharing common data processing logic. This modular design allows for consistent data cleaning across different cancer research projects while maintaining flexibility for cancer-specific requirements.
