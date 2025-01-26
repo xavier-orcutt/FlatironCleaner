@@ -46,7 +46,11 @@ class DataProcessorUrothelial:
             # Drop date-based variables if specified
             if drop_dates:
                 df = df.drop(columns=['AdvancedDiagnosisDate', 'DiagnosisDate', 'SurgeryDate'])
-                logging.info("Date columns dropped from dataset")
+
+            # Check for duplicate PatientIDs
+            if len(df) > df.PatientID.nunique():
+                logging.error(f"Duplicate PatientIDs found")
+                return None
 
             logging.info(f"Successfully processed Enhanced_AdvUrothelial.csv file with final shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
             self.enhanced_df = df
