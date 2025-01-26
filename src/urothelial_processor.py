@@ -6,7 +6,7 @@ logging.basicConfig(
     format = '%(asctime)s - %(levelname)s - %(message)s'  
 )
 
-class DataProcessorBladder:
+class DataProcessorUrothelial:
     def __init__(self):
         self.enhanced_df = None
         self.demographics_df = None
@@ -94,7 +94,7 @@ class DataProcessorBladder:
             return None
 
 if __name__ == "__main__":
-    processor = DataProcessorBladder()
+    processor = DataProcessorUrothelial()
     
     enhanced_file_path = "data/Enhanced_AdvUrothelial.csv"
     demographics_file_path = "data/Demographics.csv"
