@@ -164,33 +164,43 @@ class DataProcessorUrothelial:
             - Stores processed DataFrame in self.enhanced_df
         """
         try:
+
+            # 1. Read and validate input file
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
-            # Convert BirthYear to int64
+            # 2. Initial data type conversions
             df['BirthYear'] = df['BirthYear'].astype('int64')
-
-            # Convert categorical columns; Race, Ethnicity, and State will be converted later
             df['Gender'] = df['Gender'].astype('category')
+            df['State'] = df['State'].astype('category')
         
-            # Calculate age if reference dates are provided
-            if reference_dates_df is not None and date_column is not None:
+            # 3. Age calculation block (if reference dates provided)
+            if reference_dates_df is not None:
+                # Validate reference data
+                if 'PatientID' not in reference_dates_df.columns:
+                    logging.error("reference_dates_df must contain 'PatientID' column")
+                    return None
+            
+                if date_column is None:
+                    logging.error("date_column must be specified when reference_dates_df is provided")
+                    return None
+                
+                if date_column not in reference_dates_df.columns:
+                    logging.error(f"Column '{date_column}' not found in reference_dates_df")
+                    return None
 
-                # Convert date column to datetime if it's not already
+                # Process dates and calculate age
                 reference_dates_df[date_column] = pd.to_datetime(reference_dates_df[date_column])
-
-                # Merge Demographics.csv with reference_dates_df
                 df = pd.merge(
                     df,
                     reference_dates_df[['PatientID', date_column]], 
                     on = 'PatientID',
                     how = 'left'
                 )
-            
-                # Calculate age
+        
                 df['age'] = df[date_column].dt.year - df['BirthYear']
 
-                # Add age validation
+                # Age validation
                 mask_invalid_age = (df['age'] < 18) | (df['age'] > 120)
                 if mask_invalid_age.any():
                     logging.warning(f"Found {mask_invalid_age.sum()} ages outside valid range (18-120)")
@@ -198,6 +208,8 @@ class DataProcessorUrothelial:
                 # Drop the date column and BirthYear after age calculation
                 df = df.drop(columns = [date_column, 'BirthYear'])
 
+
+            # 4. Race and Ethnicity processing
             # If Race == 'Hispanic or Latino', fill 'Hispanic or Latino' for Ethnicity
             df['Ethnicity'] = np.where(df['Race'] == 'Hispanic or Latino', 'Hispanic or Latino', df['Ethnicity'])
 
@@ -206,6 +218,7 @@ class DataProcessorUrothelial:
 
             df[['Race', 'Ethnicity']] = df[['Race', 'Ethnicity']].astype('category')
 
+            # 5. Region processing
             # Group states into Census-Bureau regions  
             df['region'] = (df['State']
                             .map(self.STATE_REGIONS)
