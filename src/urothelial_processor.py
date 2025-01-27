@@ -8,6 +8,7 @@ logging.basicConfig(
 )
 
 class DataProcessorUrothelial:
+    
     STATE_REGIONS = {
         'ME': 'northeast', 
         'NH': 'northeast',
@@ -68,6 +69,28 @@ class DataProcessorUrothelial:
         self.demographics_df = None
 
     def process_enhanced_adv(self, file_path: str, drop_dates: bool = True) -> pd.DataFrame: 
+        """
+        Process Enhanced_AdvUrothelial.csv file by cleaning data types and calculating time-based variables.
+
+        Parameters:
+            file_path (str): Path to Enhanced_AdvUrothelial.csv file
+            drop_dates (bool, optional): If True, drops date columns after calculations. Defaults to True.
+
+        Returns:
+            pd.DataFrame: Processed DataFrame with:
+                - Categorical columns (PrimarySite, DiseaseGrade, GroupStage, TStage, NStage, 
+                  MStage, SmokingStatus, SurgeryType)
+                - Boolean column (Surgery)
+                - Calculated columns:
+                    * days_diagnosis_to_advanced: Days between initial and advanced diagnosis
+                    * advanced_diagnosis_year: Year of advanced diagnosis (as category)
+                    * days_diagnosis_to_surgery: Days between initial diagnosis and surgery
+                - Original date columns dropped if drop_dates = True
+
+        Notes:
+            - Checks for and logs duplicate PatientIDs
+            - Stores processed DataFrame in self.enhanced_df
+        """
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
@@ -117,14 +140,28 @@ class DataProcessorUrothelial:
     def process_demographics(self, 
                         file_path: str, 
                         reference_dates_df: pd.DataFrame = None,
-                        date_column: str = None) -> pd.DataFrame:
+                        date_column: str = None,
+                        drop_state: bool = True) -> pd.DataFrame:
         """
-        Process demographics data and calculate age if reference dates are provided
+        Process Demographics.csv file by cleaning data types, calculating age, and mapping states to regions.
     
         Parameters:
-        file_path: Path to demographics file
-        reference_dates_df: DataFrame containing PatientID and reference dates (eg., AdvancedDiagnosisDate or 1L StartDate)
-        date_column: Name of the date column to use for age calculation
+            file_path (str): Path to demographics CSV file
+            reference_dates_df (pd.DataFrame, optional): DataFrame containing PatientID and reference dates 
+                (e.g., AdvancedDiagnosisDate or 1L StartDate) for age calculation
+            date_column (str, optional): Name of the date column in reference_dates_df to use for age calculation
+            drop_state (bool, optional): If True, drops the State column after mapping to regions. Defaults to True.
+
+        Returns:
+            pd.DataFrame: Processed DataFrame with:
+                - Categorical columns (Gender, Race, Ethnicity, Region)
+                - Age calculated if reference dates provided
+                - States mapped to Census Bureau regions
+                - Hispanic/Latino ethnicity standardized
+
+        Notes:
+            - Checks for and logs duplicate PatientIDs
+            - Stores processed DataFrame in self.enhanced_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -174,8 +211,10 @@ class DataProcessorUrothelial:
                             .map(self.STATE_REGIONS)
                             .fillna('unknown')
                             .astype('category'))
-                            
-            df = df.drop(columns = ['State'])
+
+            # Drop State varibale if specified
+            if drop_state:               
+                df = df.drop(columns = ['State'])
 
             # Check for duplicate PatientIDs
             if len(df) > df.PatientID.nunique():
