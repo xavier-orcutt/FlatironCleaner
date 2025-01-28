@@ -111,6 +111,7 @@ class DataProcessorUrothelial:
 
     def process_enhanced_adv(self,
                              file_path: str,
+                             patient_ids: list = None,
                              drop_stages: bool = True, 
                              drop_dates: bool = True) -> pd.DataFrame: 
         """
@@ -118,6 +119,7 @@ class DataProcessorUrothelial:
 
         Parameters:
             file_path (str): Path to Enhanced_AdvUrothelial.csv file
+            patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
             drop_stages (bool, optional): If True, drops GroupStage, TStage, and MStage after calculations. Defaults to True.
             drop_dates (bool, optional): If True, drops date columns after calculations. Defaults to True.
 
@@ -132,7 +134,7 @@ class DataProcessorUrothelial:
                     * days_diagnosis_to_advanced: Days between initial and advanced diagnosis
                     * advanced_diagnosis_year: Year of advanced diagnosis (as category)
                     * days_diagnosis_to_surgery: Days between initial diagnosis and surgery
-                - Original staging columns dropped if drop_stages = True
+                - Original GroupStage, TStage, and MStage columns dropped if drop_stages = True
                 - Original date columns dropped if drop_dates = True
 
         Notes:
@@ -141,18 +143,27 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
+
+            # Filter for specific PatientIDs if provided
+            if patient_ids is not None:
+                df = df[df['PatientID'].isin(patient_ids)]
+                logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
+
             logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
         
             # Convert categorical columns
             categorical_cols = ['PrimarySite', 
-                                'DiseaseGrade', 
-                                'NStage', 
+                                'DiseaseGrade',
+                                'GroupStage',
+                                'TStage', 
+                                'NStage',
+                                'MStage', 
                                 'SmokingStatus', 
                                 'SurgeryType']
         
             df[categorical_cols] = df[categorical_cols].astype('category')
 
-            # Recode GroupStage using class-level mapping and create new column
+            # Recode stage variables using class-level mapping and create new column
             df['GroupStage_mod'] = df['GroupStage'].map(self.GROUP_STAGE_MAPPING).astype('category')
             df['TStage_mod'] = df['TStage'].map(self.T_STAGE_MAPPING).astype('category')
             df['MStage_mod'] = df['MStage'].map(self.M_STAGE_MAPPING).astype('category')
@@ -192,7 +203,8 @@ class DataProcessorUrothelial:
             return None
     
     def process_demographics(self, 
-                        file_path: str, 
+                        file_path: str,
+                        patient_ids: list = None, 
                         reference_dates_df: pd.DataFrame = None,
                         date_column: str = None,
                         drop_state: bool = True) -> pd.DataFrame:
@@ -201,6 +213,7 @@ class DataProcessorUrothelial:
     
         Parameters:
             file_path (str): Path to demographics CSV file
+            patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
             reference_dates_df (pd.DataFrame, optional): DataFrame containing PatientID and reference dates 
                 (e.g., AdvancedDiagnosisDate or 1L StartDate) for age calculation
             date_column (str, optional): Name of the date column in reference_dates_df to use for age calculation
@@ -218,17 +231,21 @@ class DataProcessorUrothelial:
             - Stores processed DataFrame in self.enhanced_df
         """
         try:
-
-            # 1. Read and validate input file
             df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
-            # 2. Initial data type conversions
+            # Filter for specific PatientIDs if provided
+            if patient_ids is not None:
+                df = df[df['PatientID'].isin(patient_ids)]
+                logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
+
+            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+
+            # Initial data type conversions
             df['BirthYear'] = df['BirthYear'].astype('int64')
             df['Gender'] = df['Gender'].astype('category')
             df['State'] = df['State'].astype('category')
         
-            # 3. Age calculation block (if reference dates provided)
+            # Age calculation block (if reference dates provided)
             if reference_dates_df is not None:
                 # Validate reference data
                 if 'PatientID' not in reference_dates_df.columns:
@@ -263,7 +280,7 @@ class DataProcessorUrothelial:
                 df = df.drop(columns = [date_column, 'BirthYear'])
 
 
-            # 4. Race and Ethnicity processing
+            # Race and Ethnicity processing
             # If Race == 'Hispanic or Latino', fill 'Hispanic or Latino' for Ethnicity
             df['Ethnicity'] = np.where(df['Race'] == 'Hispanic or Latino', 'Hispanic or Latino', df['Ethnicity'])
 
@@ -272,7 +289,7 @@ class DataProcessorUrothelial:
 
             df[['Race', 'Ethnicity']] = df[['Race', 'Ethnicity']].astype('category')
 
-            # 5. Region processing
+            # Region processing
             # Group states into Census-Bureau regions  
             df['region'] = (df['State']
                             .map(self.STATE_REGIONS)
