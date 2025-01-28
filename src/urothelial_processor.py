@@ -9,6 +9,47 @@ logging.basicConfig(
 
 class DataProcessorUrothelial:
     
+    GROUP_STAGE_MAPPING = {
+        'Stage IV': 'Stage IV',
+        'Stage IVA': 'Stage IV',
+        'Stage IVB': 'Stage IV',
+        'Stage III': 'Stage III',
+        'Stage IIIA': 'Stage III',
+        'Stage IIIB': 'Stage III',
+        'Stage II': 'Stage II',
+        'Stage I': 'Stage I',
+        'Stage 0is': 'Stage 0',
+        'Stage 0a': 'Stage 0',
+        'Unknown/not documented': 'Unknown/not documented'
+    }
+
+    T_STAGE_MAPPING = {
+        'T4': 'T4',
+        'T4a': 'T4',
+        'T4b': 'T4',
+        'T3': 'T3',
+        'T3a': 'T3',
+        'T3b': 'T3',
+        'T2': 'T2',
+        'T2a': 'T2',
+        'T2b': 'T2',
+        'T1': 'T1',
+        'T0': 'T0',
+        'Ta': 'Ta',
+        'Tis': 'Tis',
+        'TX': 'TX',
+        'Unknown/not documented': 'Unknown/not documented'
+    }
+
+    M_STAGE_MAPPING = {
+        'M1': 'M1',
+        'M1a': 'M1',
+        'M1b': 'M1',
+        'M0': 'M0',
+        'MX': 'MX',
+        'Unknown/not documented': 'Unknown/not documented'
+    }
+
     STATE_REGIONS = {
         'ME': 'northeast', 
         'NH': 'northeast',
@@ -68,23 +109,30 @@ class DataProcessorUrothelial:
         self.enhanced_df = None
         self.demographics_df = None
 
-    def process_enhanced_adv(self, file_path: str, drop_dates: bool = True) -> pd.DataFrame: 
+    def process_enhanced_adv(self,
+                             file_path: str,
+                             drop_stages: bool = True, 
+                             drop_dates: bool = True) -> pd.DataFrame: 
         """
         Process Enhanced_AdvUrothelial.csv file by cleaning data types and calculating time-based variables.
 
         Parameters:
             file_path (str): Path to Enhanced_AdvUrothelial.csv file
+            drop_stages (bool, optional): If True, drops GroupStage, TStage, and MStage after calculations. Defaults to True.
             drop_dates (bool, optional): If True, drops date columns after calculations. Defaults to True.
 
         Returns:
             pd.DataFrame: Processed DataFrame with:
-                - Categorical columns (PrimarySite, DiseaseGrade, GroupStage, TStage, NStage, 
-                  MStage, SmokingStatus, SurgeryType)
+                - Categorical columns (PrimarySite, DiseaseGrade, NStage, SmokingStatus, SurgeryType)
                 - Boolean column (Surgery)
                 - Calculated columns:
+                    * GroupStage_mod: Consolidated staging (Stage 0, I, II, III, IV, Unknown)
+                    * TStage_mod: Consolidated T staging (T0-T4, Ta, Tis, TX, Unknown)
+                    * MStage_mod: Consolidated M staging (M0, M1, MX, Unknown)
                     * days_diagnosis_to_advanced: Days between initial and advanced diagnosis
                     * advanced_diagnosis_year: Year of advanced diagnosis (as category)
                     * days_diagnosis_to_surgery: Days between initial diagnosis and surgery
+                - Original staging columns dropped if drop_stages = True
                 - Original date columns dropped if drop_dates = True
 
         Notes:
@@ -98,14 +146,20 @@ class DataProcessorUrothelial:
             # Convert categorical columns
             categorical_cols = ['PrimarySite', 
                                 'DiseaseGrade', 
-                                'GroupStage', 
-                                'TStage', 
                                 'NStage', 
-                                'MStage', 
                                 'SmokingStatus', 
                                 'SurgeryType']
         
             df[categorical_cols] = df[categorical_cols].astype('category')
+
+            # Recode GroupStage using class-level mapping and create new column
+            df['GroupStage_mod'] = df['GroupStage'].map(self.GROUP_STAGE_MAPPING).astype('category')
+            df['TStage_mod'] = df['TStage'].map(self.T_STAGE_MAPPING).astype('category')
+            df['MStage_mod'] = df['MStage'].map(self.M_STAGE_MAPPING).astype('category')
+
+            # Drop stage variables if specified
+            if drop_stages:
+                df = df.drop(columns=['GroupStage', 'TStage', 'MStage'])
         
             # Convert date columns
             date_cols = ['DiagnosisDate', 'AdvancedDiagnosisDate', 'SurgeryDate']
