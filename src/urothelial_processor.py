@@ -212,7 +212,7 @@ class DataProcessorUrothelial:
         Process Demographics.csv file by cleaning data types, calculating age, and mapping states to regions.
     
         Parameters:
-            file_path (str): Path to demographics CSV file
+            file_path (str): Path to Demographics.csv file
             patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
             reference_dates_df (pd.DataFrame, optional): DataFrame containing PatientID and reference dates 
                 (e.g., AdvancedDiagnosisDate or 1L StartDate) for age calculation
@@ -228,7 +228,7 @@ class DataProcessorUrothelial:
 
         Notes:
             - Checks for and logs duplicate PatientIDs
-            - Stores processed DataFrame in self.enhanced_df
+            - Stores processed DataFrame in self.demographics_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -238,7 +238,7 @@ class DataProcessorUrothelial:
                 df = df[df['PatientID'].isin(patient_ids)]
                 logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
 
-            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
             # Initial data type conversions
             df['BirthYear'] = df['BirthYear'].astype('int64')
@@ -311,4 +311,62 @@ class DataProcessorUrothelial:
 
         except Exception as e:
             logging.error(f"Error processing demographics file: {e}")
+            return None
+        
+
+    def process_practice(self,
+                         file_path: str,
+                         patient_ids: list = None) -> pd.DataFrame:
+        """
+        Process Practice.csv file by consolidating practice types per patient.
+    
+        Parameters:
+            file_path (str): Path to Practice.csv file
+            patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
+
+        Returns:
+            pd.DataFrame: Processed DataFrame with:
+                - PracticeType_mod (ACADEMIC, COMMUNITY, BOTH)
+        Notes:
+            - Checks for and logs duplicate PatientIDs
+            - Stores processed DataFrame in self.practice_df
+        """
+        try:
+            df = pd.read_csv(file_path)
+
+            # Filter for specific PatientIDs if provided
+            if patient_ids is not None:
+                df = df[df['PatientID'].isin(patient_ids)]
+                logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
+
+            logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+
+            df = df[['PatientID', 'PracticeType']]
+
+            # Group by PatientID and get set of unique PracticeTypes
+            grouped = df.groupby('PatientID')['PracticeType'].unique()
+            new_df = pd.DataFrame(grouped).reset_index()
+
+            # Function to determine the modified practice type
+            def get_practice_type(practice_types):
+                if len(practice_types) > 1:
+                    return 'BOTH'
+                return practice_types[0]
+            
+            # Apply the function to the column containing sets
+            new_df['PracticeType_mod'] = new_df['PracticeType'].apply(get_practice_type).astype('category')
+
+            new_df = new_df[['PatientID', 'PracticeType_mod']]
+
+            # Check for duplicate PatientIDs
+            if len(new_df) > new_df.PatientID.nunique():
+                logging.error(f"Duplicate PatientIDs found")
+                return None
+            
+            logging.info(f"Successfully processed Practice.csv file with final shape: {new_df.shape} and unique PatientIDs: {(new_df.PatientID.nunique())}")
+            self.practice_df = new_df
+            return new_df
+
+        except Exception as e:
+            logging.error(f"Error processing practice file: {e}")
             return None
