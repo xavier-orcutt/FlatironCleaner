@@ -115,31 +115,44 @@ class DataProcessorUrothelial:
                              drop_stages: bool = True, 
                              drop_dates: bool = True) -> pd.DataFrame: 
         """
-        Process Enhanced_AdvUrothelial.csv file by cleaning data types and calculating time-based variables.
+        Processes Enhanced_AdvUrothelial.csv to standardize categories, consolidate 
+        staging information, and calculate time-based metrics between key clinical events.
 
-        Parameters:
-            file_path (str): Path to Enhanced_AdvUrothelial.csv file
-            patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
-            drop_stages (bool, optional): If True, drops GroupStage, TStage, and MStage after calculations. Defaults to True.
-            drop_dates (bool, optional): If True, drops date columns after calculations. Defaults to True.
+        Parameters
+        ----------
+        file_path : str
+            Path to Enhanced_AdvUrothelial.csv file
+        patient_ids : list, optional
+            List of specific PatientIDs to process. If None, processes all patients
+        drop_stages : bool, default=True
+            If True, drops original staging columns (GroupStage, TStage, and MStage) after creating modified versions
+        drop_dates : bool, default=True
+            If True, drops date columns after calculating durations
 
-        Returns:
-            pd.DataFrame: Processed DataFrame with:
-                - Categorical columns (PrimarySite, DiseaseGrade, NStage, SmokingStatus, SurgeryType)
-                - Boolean column (Surgery)
-                - Calculated columns:
-                    * GroupStage_mod: Consolidated staging (Stage 0, I, II, III, IV, Unknown)
-                    * TStage_mod: Consolidated T staging (T0-T4, Ta, Tis, TX, Unknown)
-                    * MStage_mod: Consolidated M staging (M0, M1, MX, Unknown)
-                    * days_diagnosis_to_advanced: Days between initial and advanced diagnosis
-                    * advanced_diagnosis_year: Year of advanced diagnosis (as category)
-                    * days_diagnosis_to_surgery: Days between initial diagnosis and surgery
-                - Original GroupStage, TStage, and MStage columns dropped if drop_stages = True
-                - Original date columns dropped if drop_dates = True
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : unique patient identifier
+            - PrimarySite : anatomical site of cancer
+            - SmokingStatus : smoking history
+            - Surgery : whether surgery was performed (boolean)
+            - SurgeryType : type of surgery performed
+            - days_diagnosis_to_surgery : days from diagnosis to surgery
+            - DiseaseGrade : tumor grade
+            - NStage : lymph node staging
+            - GroupStage_mod : consolidated overall staging (0-IV, Unknown)
+            - TStage_mod : consolidated tumor staging (T0-T4, Ta, Tis, TX, Unknown)
+            - MStage_mod : consolidated metastasis staging (M0, M1, MX, Unknown)
+            - days_diagnosis_to_advanced : days from initial to advanced diagnosis
+            - advanced_diagnosis_year : year of advanced diagnosis (categorical)
+            
+            Original staging and date columns retained if respective drop_* = False
 
-        Notes:
-            - Checks for and logs duplicate PatientIDs
-            - Stores processed DataFrame in self.enhanced_df
+        Notes
+        -----
+        - Duplicate PatientIDs are logged as warnings if found
+        - Processed DataFrame is stored in self.enhanced_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -209,26 +222,38 @@ class DataProcessorUrothelial:
                         date_column: str = None,
                         drop_state: bool = True) -> pd.DataFrame:
         """
-        Process Demographics.csv file by cleaning data types, calculating age, and mapping states to regions.
-    
-        Parameters:
-            file_path (str): Path to Demographics.csv file
-            patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
-            reference_dates_df (pd.DataFrame, optional): DataFrame containing PatientID and reference dates 
-                (e.g., AdvancedDiagnosisDate or 1L StartDate) for age calculation
-            date_column (str, optional): Name of the date column in reference_dates_df to use for age calculation
-            drop_state (bool, optional): If True, drops the State column after mapping to regions. Defaults to True.
+        Processes Demographics.csv by standardizing categorical variables, mapping states 
+        to census regions, and calculating age at reference date if provided.
 
-        Returns:
-            pd.DataFrame: Processed DataFrame with:
-                - Categorical columns (Gender, Race, Ethnicity, Region)
-                - Age calculated if reference dates provided
-                - States mapped to Census Bureau regions
-                - Hispanic/Latino ethnicity standardized
+        Parameters
+        ----------
+        file_path : str
+            Path to Demographics.csv file
+        patient_ids : list, optional
+            List of specific PatientIDs to process. If None, processes all patients
+        reference_dates_df : pd.DataFrame, optional
+            DataFrame containing PatientID and reference dates for age calculation
+        date_column : str, optional
+            Column name in reference_dates_df containing dates for age calculation
+        drop_state : bool, default = True
+            If True, drops State column after mapping to regions
 
-        Notes:
-            - Checks for and logs duplicate PatientIDs
-            - Stores processed DataFrame in self.demographics_df
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : unique patient identifier
+            - Gender : standardized gender category
+            - Race : standardized race category 
+            - Ethnicity : standardized ethnicity (Hispanic/Latino status)
+            - age : age at reference date (if reference_dates_df provided)
+            - region : US Census Bureau region
+            - State : US state (if drop_state=False)
+            
+        Notes
+        -----
+        - Duplicate PatientIDs are logged as warnings if found
+        - Processed DataFrame is stored in self.demographics_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -318,18 +343,27 @@ class DataProcessorUrothelial:
                          file_path: str,
                          patient_ids: list = None) -> pd.DataFrame:
         """
-        Process Practice.csv file by consolidating practice types per patient.
-    
-        Parameters:
-            file_path (str): Path to Practice.csv file
-            patient_ids (list, optional): List of specific PatientIDs to process. If None, processes all patients. Defaults to None.
+        Processes Practice.csv to consolidate practice types per patient into a single 
+        categorical value indicating academic, community, or both settings.
 
-        Returns:
-            pd.DataFrame: Processed DataFrame with:
-                - PracticeType_mod (ACADEMIC, COMMUNITY, BOTH)
-        Notes:
-            - Checks for and logs duplicate PatientIDs
-            - Stores processed DataFrame in self.practice_df
+        Parameters
+        ----------
+        file_path : str
+            Path to Practice.csv file
+        patient_ids : list, optional
+            List of specific PatientIDs to process. If None, processes all patients
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : unique patient identifier  
+            - PracticeType_mod : practice setting (ACADEMIC, COMMUNITY, or BOTH)
+       
+        Notes
+        -----
+        - Duplicate PatientIDs are logged as warnings if found
+        - Processed DataFrame is stored in self.practice_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -366,6 +400,116 @@ class DataProcessorUrothelial:
             logging.info(f"Successfully processed Practice.csv file with final shape: {new_df.shape} and unique PatientIDs: {(new_df.PatientID.nunique())}")
             self.practice_df = new_df
             return new_df
+
+        except Exception as e:
+            logging.error(f"Error processing practice file: {e}")
+            return None
+        
+
+    def process_mortality(self,
+                          file_path: str,
+                          index_date_df: pd.DataFrame,
+                          index_date_column: str,
+                          df_merge_type: str = 'left',
+                          visit_path: str = None, 
+                          telemedicine_path: str = None, 
+                          biomarker_path: str = None, 
+                          oral_path: str = None,
+                          progression_path: str = None,
+                          drop_dates: bool = True) -> pd.DataFrame:
+        """
+        Processes Enhanced_Mortality_V2.csv by cleaning data types, calculating time 
+        from index date to death/censor, and determining mortality events. Handles
+        incomplete death dates by imputing missing day/month values.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to Enhanced_Mortality_V2.csv file
+        index_date_df : pd.DataFrame
+            DataFrame containing PatientID and reference dates for duration calculation
+        index_date_column : str
+            Column name in index_date_df containing the reference dates
+        df_merge_type : str, default='left'
+            Merge type for pd.merge(index_date_df, mortality_data)
+        visit_path : str
+            Path to Visit.csv file
+        telemedicine_path : str
+            Path to Telemedicine.csv file
+        biomarker_path : str
+            Path to Enhanced_AdvUrothelialBiomarkers.csv file
+        oral_path : str
+            Path to Enhanced_AdvUrothelial_Orals.csv file
+        progression_path : str
+            Path to Progression.csv file
+        drop_dates : bool, default = True
+            If True, drops date columns (DeathDate, index_date_column, last_ehr_date)   
+        
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : unique patient identifier
+            - duration : days from index date to death/censor
+            - event : mortality status (1 = death, 0 = censored)
+
+        Notes
+        ------
+        Death date imputation:
+        - Missing day : Imputed to 15th of the month
+        - Missing month and day : Imputed to July 1st
+    
+        Duplicate PatientIDs are logged as warnings if found
+        Processed DataFrame is stored in self.mortality_df
+        """
+            
+        try:
+            df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Enhanced_Mortality_V2.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+
+            df['DateOfDeath'] = pd.to_datetime(df['DateOfDeath'])
+
+            # When only year is available: Impute to July 1st (mid-year)
+            df['DateOfDeath'] = np.where(df['DateOfDeath'].str.len() == 4, df['DateOfDeath'] + '-07-01', df['DateOfDeath'])
+
+            # When only month and year are available: Impute to the 15th day of the month
+            df['DateOfDeath'] = np.where(df['DateOfDeath'].str.len() == 7, df['DateOfDeath'] + '-15', df['DateOfDeath'])
+
+            if index_date_df is not None:
+                # Validate reference data
+                if 'PatientID' not in index_date_df.columns:
+                    logging.error("index_date_df must contain 'PatientID' column")
+                    return None
+            
+                if index_date_column is None:
+                    logging.error("index_date_column must be specified when index_date_df is provided")
+                    return None
+                
+                if index_date_column not in index_date_df.columns:
+                    logging.error(f"Column '{index_date_column}' not found in index_date_df")
+                    return None
+
+                # Process dates and calculate age
+                index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+                df = pd.merge(
+                    index_date_df[['PatientID', index_date_column]],
+                    df,
+                    on = 'PatientID',
+                    how = 'left'
+                )
+            
+                logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                
+                # Create event column
+                df['event'] = df['DateOfDeath'].notna().astype(int)
+
+                # Discover last EHR record
+                if all(path is None for path in [visit_path, telemedicine_path, biomarker_path, oral_path, progression_path]):
+                    raise ValueError("At least one of visit_path, telemedicine_path, biomarker_path, oral_path, or progression_path must be provided")
+
+                # For those with event column = 0, calculate time from index to last event
+
+                # Drop unecessary date columns 
 
         except Exception as e:
             logging.error(f"Error processing practice file: {e}")
