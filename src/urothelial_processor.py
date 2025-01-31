@@ -156,13 +156,13 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
             # Filter for specific PatientIDs if provided
             if patient_ids is not None:
+                logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
                 df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
-
-            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                logging.info(f"Successfully filtered Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
         
             # Convert categorical columns
             categorical_cols = ['PrimarySite', 
@@ -257,13 +257,13 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
             # Filter for specific PatientIDs if provided
             if patient_ids is not None:
+                logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
                 df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
-
-            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                logging.info(f"Successfully filtered Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
             # Initial data type conversions
             df['BirthYear'] = df['BirthYear'].astype('int64')
@@ -367,13 +367,13 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
             # Filter for specific PatientIDs if provided
             if patient_ids is not None:
+                logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
                 df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Filtered for {len(patient_ids)} specific PatientIDs")
-
-            logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                logging.info(f"Successfully filtered Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
 
             df = df[['PatientID', 'PracticeType']]
 
@@ -406,111 +406,4 @@ class DataProcessorUrothelial:
             return None
         
 
-    def process_mortality(self,
-                          file_path: str,
-                          index_date_df: pd.DataFrame,
-                          index_date_column: str,
-                          df_merge_type: str = 'left',
-                          visit_path: str = None, 
-                          telemedicine_path: str = None, 
-                          biomarker_path: str = None, 
-                          oral_path: str = None,
-                          progression_path: str = None,
-                          drop_dates: bool = True) -> pd.DataFrame:
-        """
-        Processes Enhanced_Mortality_V2.csv by cleaning data types, calculating time 
-        from index date to death/censor, and determining mortality events. Handles
-        incomplete death dates by imputing missing day/month values.
-
-        Parameters
-        ----------
-        file_path : str
-            Path to Enhanced_Mortality_V2.csv file
-        index_date_df : pd.DataFrame
-            DataFrame containing PatientID and reference dates for duration calculation
-        index_date_column : str
-            Column name in index_date_df containing the reference dates
-        df_merge_type : str, default='left'
-            Merge type for pd.merge(index_date_df, mortality_data)
-        visit_path : str
-            Path to Visit.csv file
-        telemedicine_path : str
-            Path to Telemedicine.csv file
-        biomarker_path : str
-            Path to Enhanced_AdvUrothelialBiomarkers.csv file
-        oral_path : str
-            Path to Enhanced_AdvUrothelial_Orals.csv file
-        progression_path : str
-            Path to Progression.csv file
-        drop_dates : bool, default = True
-            If True, drops date columns (DeathDate, index_date_column, last_ehr_date)   
-        
-        Returns
-        -------
-        pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - duration : days from index date to death/censor
-            - event : mortality status (1 = death, 0 = censored)
-
-        Notes
-        ------
-        Death date imputation:
-        - Missing day : Imputed to 15th of the month
-        - Missing month and day : Imputed to July 1st
     
-        Duplicate PatientIDs are logged as warnings if found
-        Processed DataFrame is stored in self.mortality_df
-        """
-            
-        try:
-            df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Enhanced_Mortality_V2.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
-
-            df['DateOfDeath'] = pd.to_datetime(df['DateOfDeath'])
-
-            # When only year is available: Impute to July 1st (mid-year)
-            df['DateOfDeath'] = np.where(df['DateOfDeath'].str.len() == 4, df['DateOfDeath'] + '-07-01', df['DateOfDeath'])
-
-            # When only month and year are available: Impute to the 15th day of the month
-            df['DateOfDeath'] = np.where(df['DateOfDeath'].str.len() == 7, df['DateOfDeath'] + '-15', df['DateOfDeath'])
-
-            if index_date_df is not None:
-                # Validate reference data
-                if 'PatientID' not in index_date_df.columns:
-                    logging.error("index_date_df must contain 'PatientID' column")
-                    return None
-            
-                if index_date_column is None:
-                    logging.error("index_date_column must be specified when index_date_df is provided")
-                    return None
-                
-                if index_date_column not in index_date_df.columns:
-                    logging.error(f"Column '{index_date_column}' not found in index_date_df")
-                    return None
-
-                # Process dates and calculate age
-                index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
-                df = pd.merge(
-                    index_date_df[['PatientID', index_date_column]],
-                    df,
-                    on = 'PatientID',
-                    how = 'left'
-                )
-            
-                logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
-                
-                # Create event column
-                df['event'] = df['DateOfDeath'].notna().astype(int)
-
-                # Discover last EHR record
-                if all(path is None for path in [visit_path, telemedicine_path, biomarker_path, oral_path, progression_path]):
-                    raise ValueError("At least one of visit_path, telemedicine_path, biomarker_path, oral_path, or progression_path must be provided")
-
-                # For those with event column = 0, calculate time from index to last event
-
-                # Drop unecessary date columns 
-
-        except Exception as e:
-            logging.error(f"Error processing practice file: {e}")
-            return None
