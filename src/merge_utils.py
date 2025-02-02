@@ -21,9 +21,15 @@ def merge_dataframes(*dataframes: pd.DataFrame) -> pd.DataFrame:
         logging.error("No dataframes provided for merging")
         
     try:
+        # Calculate anticipated merges and final column count
+        num_merges = len(dataframes) - 1
+        total_columns = sum(len(df.columns) for df in dataframes) - (num_merges * 1)  # Subtract shared PatientID columns
+        logging.info(f"Anticipated number of merges: {num_merges}")
+        logging.info(f"Anticipated number of columns in final dataframe presuming all columns are unique except for PatientID: {total_columns}")
+
         for i, df in enumerate(dataframes):
             if 'PatientID' not in df.columns:
-                raise KeyError(f"Dataset {i+1} missing PatientID column")
+                raise KeyError(f"Dataframe {i+1} missing PatientID column")
             logging.info(f"Dataset {i+1} shape: {df.shape}, unique PatientIDs: {df.PatientID.nunique()}")
         
         merged_df = dataframes[0]

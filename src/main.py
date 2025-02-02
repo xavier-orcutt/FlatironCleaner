@@ -13,13 +13,20 @@ if __name__ == "__main__":
     demographics_file_path = "data/Demographics.csv"
     practice_file_path = "data/Practice.csv"
     
-    # Process both datasets
+    # Process datasets
     enhanced_df = processor.process_enhanced_adv(enhanced_file_path)
     demographics_df = processor.process_demographics(demographics_file_path)
     practice_df = processor.process_practice(practice_file_path)
+    mortality_df = processor.process_mortality(file_path="data/Enhanced_Mortality_V2.csv",
+                                               index_date_df=df,
+                                               index_date_column='AdvancedDiagnosisDate',
+                                               df_merge_type='left',
+                                               visit_path="data/Visit.csv",
+                                               oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
+                                               drop_dates = True)
 
     # Merge datasets
-    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df)
+    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df)
     
     if merged_data is not None:
         print(merged_data.head())
