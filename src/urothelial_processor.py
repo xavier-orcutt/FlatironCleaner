@@ -428,9 +428,9 @@ class DataProcessorUrothelial:
         index_date_df : pd.DataFrame
             DataFrame containing PatientID and reference dates for duration calculation
         index_date_column : str
-            Column name in index_date_df containing the reference dates
+            Column name in index_date_df containing the index date
         df_merge_type : str, default='left'
-            Merge type for pd.merge(index_date_df, mortality_data)
+            Merge type for pd.merge(index_date_df, mortality_data, on = 'PatientID', how = df_merge_type)
         visit_path : str
             Path to Visit.csv file
         telemedicine_path : str
@@ -440,9 +440,9 @@ class DataProcessorUrothelial:
         oral_path : str
             Path to Enhanced_AdvUrothelial_Orals.csv file
         progression_path : str
-            Path to Progression.csv file
+            Path to Enhanced_AdvUrothelial_Progression.csv file
         drop_dates : bool, default = True
-            If True, drops date columns (DeathDate, index_date_column, last_ehr_date)   
+            If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
         Returns
         -------

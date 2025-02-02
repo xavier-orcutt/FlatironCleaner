@@ -21,9 +21,9 @@ if __name__ == "__main__":
                                                index_date_df=df,
                                                index_date_column='AdvancedDiagnosisDate',
                                                df_merge_type='left',
-                                               visit_path="data/Visit.csv",
-                                               oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
-                                               drop_dates = True)
+                                               #visit_path="data/Visit.csv",
+                                               #oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
+                                               drop_dates = False)
 
     # Merge datasets
     merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df)
