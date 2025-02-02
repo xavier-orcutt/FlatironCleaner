@@ -62,7 +62,14 @@ def process_mortality(
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.mortality_df
         """
-            
+
+        # Input validation
+        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+    
+        if not index_date_column or index_date_column not in index_date_df.columns:
+            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Enhanced_Mortality_V2.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
@@ -75,41 +82,30 @@ def process_mortality(
 
             df['DateOfDeath'] = pd.to_datetime(df['DateOfDeath'])
 
-            if index_date_df is not None:
-                # Validate reference data
-                if 'PatientID' not in index_date_df.columns:
-                    logging.error("index_date_df must contain 'PatientID' column")
-                    return None
+            # Process index dates and merge
+            index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+            df_death = pd.merge(
+                index_date_df[['PatientID', index_date_column]],
+                df,
+                on = 'PatientID',
+                how = df_merge_type
+            )
             
-                if index_date_column is None:
-                    logging.error("index_date_column must be specified when index_date_df is provided")
-                    return None
+            logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df_death.shape} and unique PatientIDs: {(df_death.PatientID.nunique())}")
                 
-                if index_date_column not in index_date_df.columns:
-                    logging.error(f"Column '{index_date_column}' not found in index_date_df")
-                    return None
+            # Create event column
+            df_death['event'] = df_death['DateOfDeath'].notna().astype(int)
 
-                # Process dates and calculate age
-                index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
-                df_death = pd.merge(
-                    index_date_df[['PatientID', index_date_column]],
-                    df,
-                    on = 'PatientID',
-                    how = 'left'
-                )
-            
-                logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
-                
-                # Create event column
-                df_death['event'] = df_death['DateOfDeath'].notna().astype(int)
+            # Calculate last activity 
+            if all(path is None for path in [visit_path, telemedicine_path, biomarker_path, oral_path, progression_path]):
+                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarker_path, oral_path, or progression_path must be provided to calculate duration for those with a missing death date")
+                return df_death
 
-                # Calculate last activity 
-                if all(path is None for path in [visit_path, telemedicine_path, biomarker_path, oral_path, progression_path]):
-                    logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarker_path, oral_path, or progression_path must be provided to calculate duration for those with a missing death date")
-
-                if visit_path is not None and telemedicine_path is not None:
+            if visit_path is not None and telemedicine_path is not None:
+                try:
                     df_visit = pd.read_csv(visit_path)
                     df_tele = pd.read_csv(telemedicine_path)
+
                     df_visit_tele = (
                         pd.concat([
                             df_visit[['PatientID', 'VisitDate']],
@@ -126,8 +122,12 @@ def process_mortality(
                         .to_frame(name = 'last_visit_date')          
                         .reset_index()
                         )
+                except Exception as e:
+                    logging.error(f"Error reading Visit.csv and/or Telemedicine.csv files: {e}")
+                    return None
 
-                if visit_path is not None and telemedicine_path is None:
+            if visit_path is not None and telemedicine_path is None:
+                try: 
                     df_visit = pd.read_csv(visit_path)
                     df_visit['VisitDate'] = pd.to_datetime(df_visit['VisitDate'])
 
@@ -139,8 +139,12 @@ def process_mortality(
                         .to_frame(name = 'last_visit_date')          
                         .reset_index()
                     )
+                except Exception as e:
+                    logging.error(f"Error reading Visit.csv file: {e}")
+                    return None
 
-                if telemedicine_path is not None and visit_path is None:
+            if telemedicine_path is not None and visit_path is None:
+                try: 
                     df_tele = pd.read_csv(telemedicine_path)
                     df_tele['VisitDate'] = pd.to_datetime(df_tele['VisitDate'])
 
@@ -152,8 +156,12 @@ def process_mortality(
                         .to_frame(name = 'last_visit_date')          
                         .reset_index()
                     )
+                except Exception as e:
+                    logging.error(f"Error reading Telemedicine.csv file: {e}")
+                    return None
                                           
-                if biomarker_path is not None:
+            if biomarker_path is not None:
+                try: 
                     df_biomarker = pd.read_csv(biomarker_path)
                     df_biomarker['SpecimenCollectedDate'] = pd.to_datetime(df_biomarker['SpecimenCollectedDate'])
 
@@ -164,8 +172,12 @@ def process_mortality(
                         .to_frame(name = 'last_biomarker_date')
                         .reset_index()
                     )
+                except Exception as e:
+                    logging.error(f"Error reading Enhanced_AdvUrothelialBiomarkers.csv file: {e}")
+                    return None
 
-                if oral_path is not None:
+            if oral_path is not None:
+                try:
                     df_oral = pd.read_csv(oral_path)
                     df_oral['StartDate'] = pd.to_datetime(df_oral['StartDate'])
                     df_oral['EndDate'] = pd.to_datetime(df_oral['EndDate'])
@@ -178,8 +190,12 @@ def process_mortality(
                         .to_frame(name = 'last_oral_date')
                         .reset_index()
                     )
+                except Exception as e:
+                    logging.error(f"Error reading Enhanced_AdvUrothelial_Orals.csv file: {e}")
+                    return None
 
-                if progression_path is not None:
+            if progression_path is not None:
+                try: 
                     df_progression = pd.read_csv(progression_path)
                     df_progression['ProgressionDate'] = pd.to_datetime(df_progression['ProgressionDate'])
                     df_progression['LastClinicNoteDate'] = pd.to_datetime(df_progression['LastClinicNoteDate'])
@@ -192,55 +208,55 @@ def process_mortality(
                         .to_frame(name = 'last_progression_date')
                         .reset_index()
                     )
+                except Exception as e:
+                    logging.error(f"Error reading Enhanced_AdvUrothelial_Progression.csv file: {e}")
+                    return None
 
-                # Create a dictionary to store all available dataframes
-                dfs_to_merge = {}
+            # Create a dictionary to store all available dataframes
+            dfs_to_merge = {}
 
-                # Add dataframes to dictionary if they exist
-                if visit_path is not None and telemedicine_path is not None:
-                    dfs_to_merge['visit_tele'] = df_visit_tele_max
-                elif visit_path is not None:
-                    dfs_to_merge['visit'] = df_visit_max
-                elif telemedicine_path is not None:
-                    dfs_to_merge['tele'] = df_tele_max
+            # Add dataframes to dictionary if they exist
+            if visit_path is not None and telemedicine_path is not None:
+                dfs_to_merge['visit_tele'] = df_visit_tele_max
+            elif visit_path is not None:
+                dfs_to_merge['visit'] = df_visit_max
+            elif telemedicine_path is not None:
+                dfs_to_merge['tele'] = df_tele_max
 
-                if biomarker_path is not None:
-                    dfs_to_merge['biomarker'] = df_biomarker_max
-                if oral_path is not None:
-                    dfs_to_merge['oral'] = df_oral_max
-                if progression_path is not None:
-                    dfs_to_merge['progression'] = df_progression_max
+            if biomarker_path is not None:
+                dfs_to_merge['biomarker'] = df_biomarker_max
+            if oral_path is not None:
+                dfs_to_merge['oral'] = df_oral_max
+            if progression_path is not None:
+                dfs_to_merge['progression'] = df_progression_max
 
-                # Merge all available dataframes
-                if dfs_to_merge:
-                    df_last_ehr_activity = None
-                    for name, df in dfs_to_merge.items():
-                        if df_last_ehr_activity is None:
-                            df_last_ehr_activity = df
-                        else:
-                            df_last_ehr_activity = pd.merge(df_last_ehr_activity, df, on = 'PatientID', how = 'outer')
-
-                if df_last_ehr_activity is not None:
-                    # Get the available date columns that exist in our merged dataframe
-                    last_date_columns = [col for col in ['last_visit_date', 'last_oral_date', 'last_biomarker_date', 'last_progression_date']
-                                        if col in df_last_ehr_activity.columns]
-                    
-                    if last_date_columns:
-                        single_date = (
-                            df_last_ehr_activity
-                            .assign(last_ehr_activity = df_last_ehr_activity[last_date_columns].max(axis = 1))
-                            .filter(items = ['PatientID', 'last_ehr_activity'])
-                        )
+            # Merge all available dataframes
+            if dfs_to_merge:
+                df_last_ehr_activity = None
+                for name, df in dfs_to_merge.items():
+                    if df_last_ehr_activity is None:
+                        df_last_ehr_activity = df
                     else:
-                        logging.warning("No date columns found in merged dataframe")
-                        single_date = pd.DataFrame(columns=['PatientID', 'last_ehr_activity'])
+                        df_last_ehr_activity = pd.merge(df_last_ehr_activity, df, on = 'PatientID', how = 'outer')
 
-                       
-                    final_df = pd.merge(df_death, single_date, on='PatientID', how='left')
+            if df_last_ehr_activity is not None:
+                # Get the available date columns that exist in our merged dataframe
+                last_date_columns = [col for col in ['last_visit_date', 'last_oral_date', 'last_biomarker_date', 'last_progression_date']
+                                    if col in df_last_ehr_activity.columns]
+                logging.info(f"The follwing columns {last_date_columns} are used to calculate the last EHR date")
+                
+                if last_date_columns:
+                    single_date = (
+                        df_last_ehr_activity
+                        .assign(last_ehr_activity = df_last_ehr_activity[last_date_columns].max(axis = 1))
+                        .filter(items = ['PatientID', 'last_ehr_activity'])
+                    )
+
+                    final_df = pd.merge(df_death, single_date, on = 'PatientID', how = 'left')
                     return final_df
 
         except Exception as e:
-            logging.error(f"Error processing practice file: {e}")
+            logging.error(f"Error processing mortality file: {e}")
             return None
         
 
@@ -248,15 +264,10 @@ index_date_df = pd.read_csv("data/Enhanced_AdvUrothelial.csv")
 
 
 
-xx_df = process_mortality(file_path="data/Enhanced_Mortality_V2.csv",
+a = process_mortality(file_path="data/Enhanced_Mortality_V2.csv",
                           index_date_df=index_date_df,
                            index_date_column='AdvancedDiagnosisDate',
                            df_merge_type='left',
-                          visit_path= "data/Visit.csv",
-                           telemedicine_path="data/Telemedicine.csv",
-                           biomarker_path="data/Enhanced_AdvUrothelialBiomarkers.csv",
-                           oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
-                           progression_path="data/Enhanced_AdvUrothelial_Progression.csv",
                            drop_dates = True)
 
 embed()
