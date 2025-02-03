@@ -156,13 +156,13 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully read Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # Filter for specific PatientIDs if provided
             if patient_ids is not None:
                 logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
                 df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Successfully filtered Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                logging.info(f"Successfully filtered Enhanced_AdvUrothelial.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
         
             # Convert categorical columns
             categorical_cols = ['PrimarySite', 
@@ -203,11 +203,11 @@ class DataProcessorUrothelial:
                 df = df.drop(columns=['AdvancedDiagnosisDate', 'DiagnosisDate', 'SurgeryDate'])
 
             # Check for duplicate PatientIDs
-            if len(df) > df.PatientID.nunique():
+            if len(df) > df['PatientID'].nunique():
                 logging.error(f"Duplicate PatientIDs found")
                 return None
 
-            logging.info(f"Successfully processed Enhanced_AdvUrothelial.csv file with final shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully processed Enhanced_AdvUrothelial.csv file with final shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
             self.enhanced_df = df
             return df
 
@@ -218,12 +218,12 @@ class DataProcessorUrothelial:
     def process_demographics(self, 
                             file_path: str,
                             patient_ids: list = None, 
-                            reference_dates_df: pd.DataFrame = None,
-                            date_column: str = None,
+                            index_date_df: pd.DataFrame = None,
+                            index_date_column: str = None,
                             drop_state: bool = True) -> pd.DataFrame:
         """
         Processes Demographics.csv by standardizing categorical variables, mapping states 
-        to census regions, and calculating age at reference date if provided.
+        to census regions, and calculating age at index date if provided.
 
         Parameters
         ----------
@@ -231,10 +231,10 @@ class DataProcessorUrothelial:
             Path to Demographics.csv file
         patient_ids : list, optional
             List of specific PatientIDs to process. If None, processes all patients
-        reference_dates_df : pd.DataFrame, optional
-            DataFrame containing PatientID and reference dates for age calculation
-        date_column : str, optional
-            Column name in reference_dates_df containing dates for age calculation
+        index_dates_df : pd.DataFrame, optional
+            DataFrame containing PatientID and index dates for age calculation
+        index_date_column : str, optional
+            Column name in index_date_df containing dates for age calculation
         drop_state : bool, default = True
             If True, drops State column after mapping to regions
 
@@ -246,7 +246,7 @@ class DataProcessorUrothelial:
             - Gender : standardized gender category
             - Race : standardized race category 
             - Ethnicity : standardized ethnicity (Hispanic/Latino status)
-            - age : age at reference date (if reference_dates_df provided)
+            - age : age at index date (if index_date_df provided)
             - region : US Census Bureau region
             - State : US state (if drop_state=False)
             
@@ -257,53 +257,52 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # Filter for specific PatientIDs if provided
             if patient_ids is not None:
                 logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
                 df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Successfully filtered Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                logging.info(f"Successfully filtered Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # Initial data type conversions
             df['BirthYear'] = df['BirthYear'].astype('int64')
             df['Gender'] = df['Gender'].astype('category')
             df['State'] = df['State'].astype('category')
         
-            # Age calculation block (if reference dates provided)
-            if reference_dates_df is not None:
-                # Validate reference data
-                if 'PatientID' not in reference_dates_df.columns:
-                    logging.error("reference_dates_df must contain 'PatientID' column")
+            # Age calculation block (if index dates provided)
+            if index_date_df is not None:
+                # Validate index data
+                if 'PatientID' not in index_date_df.columns:
+                    logging.error("index_dates_df must contain 'PatientID' column")
                     return None
             
-                if date_column is None:
-                    logging.error("date_column must be specified when reference_dates_df is provided")
+                if index_date_column is None:
+                    logging.error("index_date_column must be specified when index_date_df is provided")
                     return None
                 
-                if date_column not in reference_dates_df.columns:
-                    logging.error(f"Column '{date_column}' not found in reference_dates_df")
+                if index_date_column not in index_date_df.columns:
+                    logging.error(f"Column '{index_date_column}' not found in index_date_df")
                     return None
 
                 # Process dates and calculate age
-                reference_dates_df[date_column] = pd.to_datetime(reference_dates_df[date_column])
+                index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
                 df = pd.merge(
                     df,
-                    reference_dates_df[['PatientID', date_column]], 
+                    index_date_df[['PatientID', index_date_column]], 
                     on = 'PatientID',
                     how = 'left'
                 )
         
-                df['age'] = df[date_column].dt.year - df['BirthYear']
+                df['age'] = df[index_date_column].dt.year - df['BirthYear']
 
                 # Age validation
                 mask_invalid_age = (df['age'] < 18) | (df['age'] > 120)
                 if mask_invalid_age.any():
                     logging.warning(f"Found {mask_invalid_age.sum()} ages outside valid range (18-120)")
 
-                # Drop the date column and BirthYear after age calculation
-                df = df.drop(columns = [date_column, 'BirthYear'])
-
+                # Drop the index date column and BirthYear after age calculation
+                df = df.drop(columns = [index_date_column, 'BirthYear'])
 
             # Race and Ethnicity processing
             # If Race == 'Hispanic or Latino', fill 'Hispanic or Latino' for Ethnicity
@@ -326,11 +325,11 @@ class DataProcessorUrothelial:
                 df = df.drop(columns = ['State'])
 
             # Check for duplicate PatientIDs
-            if len(df) > df.PatientID.nunique():
+            if len(df) > df['PatientID'].nunique():
                 logging.error(f"Duplicate PatientIDs found")
                 return None
             
-            logging.info(f"Successfully processed Demographics.csv file with final shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully processed Demographics.csv file with final shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
             self.demographics_df = df
             return df
 
@@ -367,13 +366,13 @@ class DataProcessorUrothelial:
         """
         try:
             df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # Filter for specific PatientIDs if provided
             if patient_ids is not None:
                 logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
                 df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Successfully filtered Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+                logging.info(f"Successfully filtered Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             df = df[['PatientID', 'PracticeType']]
 
@@ -393,11 +392,11 @@ class DataProcessorUrothelial:
             new_df = new_df[['PatientID', 'PracticeType_mod']]
 
             # Check for duplicate PatientIDs
-            if len(new_df) > new_df.PatientID.nunique():
+            if len(new_df) > new_df['PatientID'].nunique():
                 logging.error(f"Duplicate PatientIDs found")
                 return None
             
-            logging.info(f"Successfully processed Practice.csv file with final shape: {new_df.shape} and unique PatientIDs: {(new_df.PatientID.nunique())}")
+            logging.info(f"Successfully processed Practice.csv file with final shape: {new_df.shape} and unique PatientIDs: {(new_df['PatientID'].nunique())}")
             self.practice_df = new_df
             return new_df
 
@@ -471,7 +470,7 @@ class DataProcessorUrothelial:
 
         try:
             df = pd.read_csv(file_path)
-            logging.info(f"Successfully read Enhanced_Mortality_V2.csv file with shape: {df.shape} and unique PatientIDs: {(df.PatientID.nunique())}")
+            logging.info(f"Successfully read Enhanced_Mortality_V2.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # When only year is available: Impute to July 1st (mid-year)
             df['DateOfDeath'] = np.where(df['DateOfDeath'].str.len() == 4, df['DateOfDeath'] + '-07-01', df['DateOfDeath'])

@@ -15,14 +15,14 @@ if __name__ == "__main__":
     
     # Process datasets
     enhanced_df = processor.process_enhanced_adv(enhanced_file_path)
-    demographics_df = processor.process_demographics(demographics_file_path)
+    demographics_df = processor.process_demographics(demographics_file_path, index_date_df=df, index_date_column='AdvancedDiagnosisDate')
     practice_df = processor.process_practice(practice_file_path)
     mortality_df = processor.process_mortality(file_path="data/Enhanced_Mortality_V2.csv",
                                                index_date_df=df,
                                                index_date_column='AdvancedDiagnosisDate',
                                                df_merge_type='left',
-                                               #visit_path="data/Visit.csv",
-                                               #oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
+                                               visit_path="data/Visit.csv",
+                                               oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
                                                drop_dates = False)
 
     # Merge datasets
