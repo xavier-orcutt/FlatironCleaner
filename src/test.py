@@ -7,6 +7,25 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(levelname)s - %(message)s')
 
+PDL1_PERCENT_STAINING_MAPPING = { 
+    np.nan: 0,
+    '0%': 1, 
+    '< 1%': 2,
+    '1%': 3, 
+    '2% - 4%': 4,
+    '5% - 9%': 5,
+    '10% - 19%': 6,  
+    '20% - 29%': 7, 
+    '30% - 39%': 8, 
+    '40% - 49%': 9, 
+    '50% - 59%': 10, 
+    '60% - 69%': 11, 
+    '70% - 79%': 12, 
+    '80% - 89%': 13, 
+    '90% - 99%': 14,
+    '100%': 15
+}
+
 def process_biomarkers(
                       file_path: str,
                       index_date_df: pd.DataFrame,
@@ -115,8 +134,44 @@ def process_biomarkers(
             )
         
         # Process PDL1 status
+        pdl1_df = (
+            df_filtered
+            .query('BiomarkerName == "PDL1"')
+            .groupby('PatientID')['BiomarkerStatus']
+            .agg(lambda x: 'positive' if any ('PD-L1 positive' in val for val in x)
+                 else ('negative' if any('PD-L1 negative/not detected' in val for val in x)
+                       else 'unknown'))
+            .reset_index()
+            .rename(columns={'BiomarkerStatus': 'pdl1_status'})
+            )
 
         # Process PDL1 staining 
+        pdl1_staining_df = (
+            df_filtered
+            .query('BiomarkerName == "PDL1"')
+            .query('BiomarkerStatus == "PD-L1 positive"')
+            .groupby('PatientID')['PercentStaining']
+            .assign(pdl1_ordinal_value = lambda x: x['PercentStaining'].map(PDL1_PERCENT_STAINING_MAPPING))
+            .groupby('PatientID')
+            .agg({'pdl1_ordinal_value': 'max'})
+            )
+        
+        # Create reverse mapping to convert back to percentage strings
+        reverse_pdl1_dict = {v: k for k, v in PDL1_PERCENT_STAINING_MAPPING.items()}
+        pdl1_staining_df['PercentStaining'] = pdl1_staining_df['pdl1_ordinal_value'].map(reverse_pdl1_dict)
+        pdl1_staining_df = pdl1_staining_df.drop(columns = ['pdl1_ordinal_value'])
+
+        # Merge dataframes
+        final_df = pd.merge(pdl1_df, pdl1_staining_df, on = 'PatientID', how = 'left')
+        final_df = pd.merge(final_df, fgfr_df, on = 'PatientID', how = 'outer')
+
+        # Check for duplicate PatientIDs
+        if len(final_df) > final_df['PatientID'].nunique():
+            logging.error(f"Duplicate PatientIDs found")
+            return None
+
+        logging.info(f"Successfully processed Enhanced_AdvUrothelialBiomarkers.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+        return final_df
 
     except Exception as e:
         logging.error(f"Error processing Enhanced_AdvUrothelialBiomarkers.csv file: {e}")

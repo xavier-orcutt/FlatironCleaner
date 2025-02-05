@@ -6,7 +6,8 @@ logging.basicConfig(
     format = '%(asctime)s - %(levelname)s - %(message)s'  
 )
 
-def merge_dataframes(*dataframes: pd.DataFrame) -> pd.DataFrame:
+def merge_dataframes(*dataframes: pd.DataFrame,
+                     merge_type: str = 'outer') -> pd.DataFrame:
     """
     Outer merge of multiple datasets based on PatientID
     
@@ -34,7 +35,7 @@ def merge_dataframes(*dataframes: pd.DataFrame) -> pd.DataFrame:
         
         merged_df = dataframes[0]
         for i, df in enumerate(dataframes[1:], 2):
-            merged_df = pd.merge(merged_df, df, on='PatientID', how='outer')
+            merged_df = pd.merge(merged_df, df, on = 'PatientID', how = merge_type)
             logging.info(f"After merge {i-1} shape: {merged_df.shape}, unique PatientIDs {merged_df.PatientID.nunique()}")
         
         return merged_df
