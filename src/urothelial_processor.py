@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+from typing import Optional
 
 logging.basicConfig(
     level = logging.INFO,                                 
@@ -48,6 +49,20 @@ class DataProcessorUrothelial:
         'M0': 'M0',
         'MX': 'MX',
         'Unknown/not documented': 'Unknown/not documented'
+    }
+
+    SURGERY_TYPE_MAPPING = {
+        'Cystoprostatectomy': 'bladder',
+        'Complete (radical) cystectomy': 'bladder',
+        'Partial cystectomy': 'bladder',
+        'Cystectomy, NOS': 'bladder',
+        'Nephroureterectomy': 'upper',
+        'Nephrectomy': 'upper',
+        'Ureterectomy': 'upper', 
+        'Urethrectomy': 'other',
+        'Other': 'other',
+        'Unknown/not documented': 'unknown', 
+        np.nan: 'unknown'
     }
 
     STATE_REGIONS = {
@@ -104,6 +119,25 @@ class DataProcessorUrothelial:
         'WA': 'west',
         'PR': 'unknown'
     }
+
+    PDL1_PERCENT_STAINING_MAPPING = {
+        np.nan: 0,
+        '0%': 1, 
+        '< 1%': 2,
+        '1%': 3, 
+        '2% - 4%': 4,
+        '5% - 9%': 5,
+        '10% - 19%': 6,  
+        '20% - 29%': 7, 
+        '30% - 39%': 8, 
+        '40% - 49%': 9, 
+        '50% - 59%': 10, 
+        '60% - 69%': 11, 
+        '70% - 79%': 12, 
+        '80% - 89%': 13, 
+        '90% - 99%': 14,
+        '100%': 15
+    }
     
     def __init__(self):
         self.enhanced_df = None
@@ -113,6 +147,7 @@ class DataProcessorUrothelial:
                              file_path: str,
                              patient_ids: list = None,
                              drop_stages: bool = True, 
+                             drop_surgery_type: bool = True,
                              drop_dates: bool = True) -> pd.DataFrame: 
         """
         Processes Enhanced_AdvUrothelial.csv to standardize categories, consolidate 
@@ -126,6 +161,8 @@ class DataProcessorUrothelial:
             List of specific PatientIDs to process. If None, processes all patients
         drop_stages : bool, default=True
             If True, drops original staging columns (GroupStage, TStage, and MStage) after creating modified versions
+        drop_surgery_type : bool, default=True
+            If True, drops original surgery type after creating modified version
         drop_dates : bool, default=True
             If True, drops date columns after calculating durations
 
@@ -137,7 +174,7 @@ class DataProcessorUrothelial:
             - PrimarySite : anatomical site of cancer
             - SmokingStatus : smoking history
             - Surgery : whether surgery was performed (boolean)
-            - SurgeryType : type of surgery performed
+            - SurgeryType_mod : consolidated surgery type
             - days_diagnosis_to_surgery : days from diagnosis to surgery
             - DiseaseGrade : tumor grade
             - NStage : lymph node staging
@@ -181,10 +218,17 @@ class DataProcessorUrothelial:
             df['TStage_mod'] = df['TStage'].map(self.T_STAGE_MAPPING).astype('category')
             df['MStage_mod'] = df['MStage'].map(self.M_STAGE_MAPPING).astype('category')
 
-            # Drop stage variables if specified
+            # Drop original stage variables if specified
             if drop_stages:
                 df = df.drop(columns=['GroupStage', 'TStage', 'MStage'])
-        
+
+            # Recode surgery type variable using class-level mapping and create new column
+            df['SurgeryType_mod'] = df['SurgeryType'].map(self.SURGERY_TYPE_MAPPING).astype('category')
+
+            # Drop original surgery type variable if specified
+            if drop_surgery_type:
+                df = df.drop(columns=['SurgeryType'])
+
             # Convert date columns
             date_cols = ['DiagnosisDate', 'AdvancedDiagnosisDate', 'SurgeryDate']
             for col in date_cols:
