@@ -62,7 +62,7 @@ def process_biomarkers(
         - PatientID : unique patient identifier
         - fgfr_status : positive if ever-positive, negative if only-negative, otherwise unknown
         - pdl1_status : positive if ever-positive, negative if only-negative, otherwise unknown
-        - pdl1_staining : returns percent staining for PDL1  
+        - pdl1_staining : returns a patient's maximum percent staining for PDL1  
 
     Notes
     ------
@@ -110,7 +110,7 @@ def process_biomarkers(
         if days_before is None:
             # Only filter for days after
             df_filtered = df[df['index_to_result'] <= days_after].copy()
-            window_desc = f"up to +{days_after} days after index"
+            window_desc = f"negative infinity up to index date"
         else:
             # Filter for both before and after
             df_filtered = df[
@@ -119,7 +119,7 @@ def process_biomarkers(
             ].copy()
             window_desc = f"-{days_before} to +{days_after} days from index"
 
-        logging.info(f"After applying window period ({window_desc}), "f"remaining records: {df.df_filtered}, "f"unique PatientIDs: {df_filtered['PatientID'].nunique()}")
+        logging.info(f"After applying window period {window_desc}, "f"remaining records: {df_filtered.shape}, "f"unique PatientIDs: {df_filtered['PatientID'].nunique()}")
 
         # Process FGFR status
         fgfr_df = (
@@ -151,9 +151,11 @@ def process_biomarkers(
             .query('BiomarkerName == "PDL1"')
             .query('BiomarkerStatus == "PD-L1 positive"')
             .groupby('PatientID')['PercentStaining']
-            .assign(pdl1_ordinal_value = lambda x: x['PercentStaining'].map(PDL1_PERCENT_STAINING_MAPPING))
+            .apply(lambda x: x.map(PDL1_PERCENT_STAINING_MAPPING))
             .groupby('PatientID')
-            .agg({'pdl1_ordinal_value': 'max'})
+            .agg('max')
+            .to_frame(name = 'pdl1_ordinal_value')
+            .reset_index()
             )
         
         # Create reverse mapping to convert back to percentage strings
@@ -182,6 +184,8 @@ index_date_df = pd.read_csv("data/Enhanced_AdvUrothelial.csv")
 a = process_biomarkers(file_path="data/Enhanced_AdvUrothelialBiomarkers.csv",
                       index_date_df=index_date_df,
                       index_date_column='AdvancedDiagnosisDate',
+                      days_before=90,
+                      days_after=14
                      )
 
 embed()
