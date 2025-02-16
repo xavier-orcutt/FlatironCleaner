@@ -5,15 +5,14 @@ from IPython import embed
 
 if __name__ == "__main__":
     processor = DataProcessorUrothelial()
-    
-    df = pd.read_csv('data/Enhanced_AdvUrothelial.csv')
-    id_list = df.sample(500).PatientID.to_list()  
 
     enhanced_file_path = "data/Enhanced_AdvUrothelial.csv"
     demographics_file_path = "data/Demographics.csv"
     practice_file_path = "data/Practice.csv"
     mortality_file_path = "data/Enhanced_Mortality_V2.csv"
     biomarkers_file_path = "data/Enhanced_AdvUrothelialBiomarkers.csv"
+
+    df = pd.read_csv(enhanced_file_path)
     
     # Process datasets
     enhanced_df = processor.process_enhanced_adv(enhanced_file_path)

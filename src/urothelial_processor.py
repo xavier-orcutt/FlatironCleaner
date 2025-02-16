@@ -872,12 +872,25 @@ class DataProcessorUrothelial:
             
             # Create reverse mapping to convert back to percentage strings
             reverse_pdl1_dict = {v: k for k, v in self.PDL1_PERCENT_STAINING_MAPPING.items()}
-            pdl1_staining_df['PercentStaining'] = pdl1_staining_df['pdl1_ordinal_value'].map(reverse_pdl1_dict)
+            pdl1_staining_df['pdl1_percent_staining'] = pdl1_staining_df['pdl1_ordinal_value'].map(reverse_pdl1_dict)
             pdl1_staining_df = pdl1_staining_df.drop(columns = ['pdl1_ordinal_value'])
 
             # Merge dataframes
             final_df = pd.merge(pdl1_df, pdl1_staining_df, on = 'PatientID', how = 'left')
             final_df = pd.merge(final_df, fgfr_df, on = 'PatientID', how = 'outer')
+
+            final_df['pdl1_status'] = final_df['pdl1_status'].astype('category')
+            final_df['fgfr_status'] = final_df['fgfr_status'].astype('category')
+
+
+            staining_dtype = pd.CategoricalDtype(
+                categories = ['0%', '< 1%', '1%', '2% - 4%', '5% - 9%', '10% - 19%',
+                              '20% - 29%', '30% - 39%', '40% - 49%', '50% - 59%',
+                              '60% - 69%', '70% - 79%', '80% - 89%', '90% - 99%', '100%'],
+                              ordered = True
+                              )
+            
+            final_df['pdl1_percent_staining'] = final_df['pdl1_percent_staining'].astype(staining_dtype)
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
