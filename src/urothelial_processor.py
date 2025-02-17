@@ -759,13 +759,13 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Enhanced_AdvUrothelialBiomarkers.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and reference dates for defining analysis windows
+            DataFrame containing PatientID and index dates. Only biomarkers for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int, optional
-            Number of days before the index date to include. Enter number >= 0. If None, includes all prior results (default: None)
+            Number of days before the index date to include. Must be >= 0 or None. If None, includes all prior results. Default: None
         days_after : int, optional
-            Number of days after the index date to include. Enter number >= 0 (default: 0)
+            Number of days after the index date to include. Must be >= 0. Default: 0
         
         Returns
         -------
@@ -774,7 +774,7 @@ class DataProcessorUrothelial:
             - PatientID : unique patient identifier
             - fgfr_status : positive if ever-positive, negative if only-negative, otherwise unknown
             - pdl1_status : positive if ever-positive, negative if only-negative, otherwise unknown
-            - pdl1_staining : returns a patient's maximum percent staining for PDL1  
+            - pdl1_staining : returns a patient's maximum percent staining for PDL1
 
         Notes
         ------
@@ -805,14 +805,16 @@ class DataProcessorUrothelial:
             # Impute missing ResultDate with SpecimenReceivedDate
             df['ResultDate'] = np.where(df['ResultDate'].isna(), df['SpecimenReceivedDate'], df['ResultDate'])
 
-            # Process index dates and merge
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+
+            # Select PatientIDs that are included in the index_date_df the merge on 'left'
+            df = df[df.PatientID.isin(index_date_df.PatientID)]
             df = pd.merge(
-                df,
-                index_date_df[['PatientID', index_date_column]],
-                on = 'PatientID',
-                how = 'left'
-            )
+                 df,
+                 index_date_df[['PatientID', index_date_column]],
+                 on = 'PatientID',
+                 how = 'left'
+                 )
             logging.info(f"Successfully merged Enhanced_AdvUrothelialBiomarkers.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
             
             # Create new variable 'index_to_result' that notes difference in days between resulted specimen and index date
@@ -822,16 +824,16 @@ class DataProcessorUrothelial:
             if days_before is None:
                 # Only filter for days after
                 df_filtered = df[df['index_to_result'] <= days_after].copy()
-                window_desc = f"negative infinity up to index date"
+                window_desc = f"negative infinity to +{days_after} days from index date"
             else:
                 # Filter for both before and after
                 df_filtered = df[
                     (df['index_to_result'] <= days_after) & 
                     (df['index_to_result'] >= -days_before)
                 ].copy()
-                window_desc = f"-{days_before} to +{days_after} days from index"
+                window_desc = f"-{days_before} to +{days_after} days from index date"
 
-            logging.info(f"After applying window period {window_desc}, "f"remaining records: {df_filtered.shape}, "f"unique PatientIDs: {df_filtered['PatientID'].nunique()}")
+            logging.info(f"After applying window period of {window_desc}, "f"remaining records: {df_filtered.shape}, "f"unique PatientIDs: {df_filtered['PatientID'].nunique()}")
 
             # Process FGFR status
             fgfr_df = (
