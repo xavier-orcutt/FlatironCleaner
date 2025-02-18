@@ -11,6 +11,7 @@ if __name__ == "__main__":
     practice_file_path = "data/Practice.csv"
     mortality_file_path = "data/Enhanced_Mortality_V2.csv"
     biomarkers_file_path = "data/Enhanced_AdvUrothelialBiomarkers.csv"
+    ecog_file_path = "data/ECOG.csv"
 
     df = pd.read_csv(enhanced_file_path)
     
@@ -38,8 +39,14 @@ if __name__ == "__main__":
                                                  days_after=14)
 
 
+    ecog_df =  processor.process_ecog(ecog_file_path,
+                                      index_date_df=df,
+                                      index_date_column='AdvancedDiagnosisDate',
+                                      days_before=90,
+                                      days_after=0)
+
     # Merge datasets
-    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df)
+    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df, ecog_df)
     
     if merged_data is not None:
         print(merged_data.head())
