@@ -160,6 +160,7 @@ class DataProcessorUrothelial:
     def __init__(self):
         self.enhanced_df = None
         self.demographics_df = None
+        self.practice_df = None
         self.mortality_df = None 
         self.biomarkers_df = None
         self.ecog_df = None
@@ -1656,6 +1657,7 @@ class DataProcessorUrothelial:
                 return None
 
             logging.info(f"Successfully processed Lab.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+            self.labs_df = final_df
             return final_df
 
         except Exception as e:
