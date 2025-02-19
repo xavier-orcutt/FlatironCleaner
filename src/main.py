@@ -12,6 +12,8 @@ if __name__ == "__main__":
     mortality_file_path = "data/Enhanced_Mortality_V2.csv"
     biomarkers_file_path = "data/Enhanced_AdvUrothelialBiomarkers.csv"
     ecog_file_path = "data/ECOG.csv"
+    vitals_file_path = "data/Vitals.csv"
+    lab_file_path =  "data/Lab.csv"
 
     df = pd.read_csv(enhanced_file_path)
     
@@ -27,7 +29,6 @@ if __name__ == "__main__":
     mortality_df = processor.process_mortality(mortality_file_path,
                                                index_date_df=df,
                                                index_date_column='AdvancedDiagnosisDate',
-                                               df_merge_type='left',
                                                visit_path="data/Visit.csv",
                                                oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
                                                drop_dates = False)
@@ -38,15 +39,28 @@ if __name__ == "__main__":
                                                  days_before=90,
                                                  days_after=14)
 
-
     ecog_df =  processor.process_ecog(ecog_file_path,
                                       index_date_df=df,
                                       index_date_column='AdvancedDiagnosisDate',
                                       days_before=90,
                                       days_after=0)
+    
+    vitals_df = processor.process_vitals(vitals_file_path,
+                                         index_date_df=df,
+                                         index_date_column='AdvancedDiagnosisDate',
+                                         weight_days_before = 90,
+                                         weight_days_after = 0,
+                                         vital_summary_lookback = 180)
+    
+    lab_df = processor.process_labs(lab_file_path,
+                                    index_date_df=df,
+                                    index_date_column='AdvancedDiagnosisDate',
+                                    days_before = 90,
+                                    days_after = 0,
+                                    summary_lookback = 180)
 
     # Merge datasets
-    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df, ecog_df)
+    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df, ecog_df, vitals_df, lab_df)
     
     if merged_data is not None:
         print(merged_data.head())

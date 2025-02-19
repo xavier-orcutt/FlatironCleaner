@@ -138,12 +138,33 @@ class DataProcessorUrothelial:
         '90% - 99%': 14,
         '100%': 15
     }
+
+    LOINC_MAPPINGS = {
+             'hemoglobin': ['718-7', '20509-6'],
+             'wbc': ['26464-8', '6690-2'],
+             'platelet': ['26515-7', '777-3', '778-1', '49497-1'],
+             'creatinine': ['2160-0', '38483-4'],
+             'bun': ['3094-0'],
+             'sodium': ['2947-0', '2951-2'],
+             'bicarb': ['1963-8', '1959-6', '14627-4', '1960-4', '2028-9'],
+             'chloride': ['2075-0'],
+             'potassium': ['6298-4', '2823-3'],
+             'albumin': ['1751-7'],
+             'calcium': ['17861-6', '49765-1'],
+             'total_bilirubin': ['42719-5', '1975-2'],
+             'ast': ['1920-8'],
+             'alt': ['1742-6', '1743-4', '1744-2'],
+             'alp': ['6768-6']
+             }
     
     def __init__(self):
         self.enhanced_df = None
         self.demographics_df = None
         self.mortality_df = None 
         self.biomarkers_df = None
+        self.ecog_df = None
+        self.vitals_df = None
+        self.labs_df = None
 
     def process_enhanced_adv(self,
                              file_path: str,
@@ -454,7 +475,6 @@ class DataProcessorUrothelial:
                           file_path: str,
                           index_date_df: pd.DataFrame,
                           index_date_column: str,
-                          df_merge_type: str = 'left',
                           visit_path: str = None, 
                           telemedicine_path: str = None, 
                           biomarker_path: str = None, 
@@ -471,7 +491,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Enhanced_Mortality_V2.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and reference dates for duration calculation
+            DataFrame containing PatientID and index dates. Only mortality data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         df_merge_type : str, default='left'
@@ -532,7 +552,7 @@ class DataProcessorUrothelial:
                 index_date_df[['PatientID', index_date_column]],
                 df,
                 on = 'PatientID',
-                how = df_merge_type
+                how = 'left'
             )
             
             logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df_death.shape} and unique PatientIDs: {(df_death.PatientID.nunique())}")
@@ -745,7 +765,7 @@ class DataProcessorUrothelial:
                            days_before: Optional[int] = None,
                            days_after: int = 0) -> pd.DataFrame:
         """
-        Processes Enhanced_AdvUrothelialBiomarkers.csv by determining FGFR and PDL1 status for each patient within a specified time window relative to a reference index date
+        Processes Enhanced_AdvUrothelialBiomarkers.csv by determining FGFR and PDL1 status for each patient within a specified time window relative to an index date
         For each biomarker:
         - FGFR status is classified as:
             - 'positive' if any test result is positive (ever-positive)
@@ -911,7 +931,7 @@ class DataProcessorUrothelial:
                      file_path: str,
                      index_date_df: pd.DataFrame,
                      index_date_column: str, 
-                     days_before: Optional[int] = 30,
+                     days_before: int = 90,
                      days_after: int = 0) -> pd.DataFrame:
         """
         Processes ECOG.csv to determine patient ECOG scores relative to a reference index date.
@@ -927,8 +947,8 @@ class DataProcessorUrothelial:
             DataFrame containing PatientID and index dates. Only ECOGs for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
-        days_before : int | None, optional
-            Number of days before the index date to include. Must be >= 0 or None. If None, includes all prior results. Default: 30
+        days_before : int, optional
+            Number of days before the index date to include. Must be >= 0. Default: 90
         days_after : int, optional
             Number of days after the index date to include. Must be >= 0. Default: 0
         
@@ -954,9 +974,8 @@ class DataProcessorUrothelial:
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
-        if days_before is not None:
-            if not isinstance(days_before, int) or days_before < 0:
-                raise ValueError("days_before must be a non-negative integer or None")
+        if not isinstance(days_before, int) or days_before < 0:
+            raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
 
@@ -983,16 +1002,10 @@ class DataProcessorUrothelial:
             df['index_to_ecog'] = (df['EcogDate'] - df[index_date_column]).dt.days
             
             # Select ECOG that fall within desired before and after index date
-            if days_before is None:
-                # Only filter for days after
-                df_filtered = df[df['index_to_ecog'] <= days_after].copy()
-                window_desc = f"negative infinity to +{days_after} days from index date"
-            else:
-                # Filter for both before and after
-                df_filtered = df[
-                    (df['index_to_ecog'] <= days_after) & 
-                    (df['index_to_ecog'] >= -days_before)].copy()
-                window_desc = f"-{days_before} to +{days_after} days from index date"
+            df_filtered = df[
+                (df['index_to_ecog'] <= days_after) & 
+                (df['index_to_ecog'] >= -days_before)].copy()
+            window_desc = f"-{days_before} to +{days_after} days from index date"
 
             logging.info(f"After applying window period of {window_desc}, "f"remaining records: {df_filtered.shape}, "f"unique PatientIDs: {df_filtered['PatientID'].nunique()}")
 
@@ -1054,6 +1067,599 @@ class DataProcessorUrothelial:
 
         except Exception as e:
             logging.error(f"Error processing ECOG.csv file: {e}")
+            return None
+        
+
+    def process_vitals(self,
+                       file_path: str,
+                       index_date_df: pd.DataFrame,
+                       index_date_column: str, 
+                       weight_days_before: int = 90,
+                       weight_days_after: int = 0,
+                       vital_summary_lookback: int = 180) -> pd.DataFrame:
+        """
+        Processes Vitals.csv to determine patient BMI, weight, change in weight, and vital sign abnormalities
+        within a specified time window relative to an index date. 
+
+        Parameters
+        ----------
+        file_path : str
+            Path to Vitals.csv file
+        index_date_df : pd.DataFrame
+            DataFrame containing PatientID and index dates. Only vitals for PatientIDs present in this DataFrame will be processed
+        index_date_column : str
+            Column name in index_date_df containing the index date
+        weight_days_before : int, optional
+            Number of days before the index date to include for weight and BMI calculations. Must be >= 0. Default: 90
+        weight_days_after : int, optional
+            Number of days after the index date to include for weight and BMI calculations. Also used as the end point for 
+            vital sign abnormalities and weight change calculations. Must be >= 0. Default: 0
+        vital_summary_lookback : int, optional
+            Number of days before index date to assess for weight change, hypotension, tachycardia, and fever. Must be >= 0. Default: 180
+        
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : unique patient identifier
+            - weight : float, weight in kg closest to index date within specified window (index_date - weight_days_before) 
+              to (index_date + weight_days_after)
+            - bmi : float, BMI closest to index date within specified window (index_date - weight_days_before) 
+              to (index_date + weight_days_after)
+            - percent_change_weight : float, percentage change in weight over period from (index_date - vital_summary_lookback) 
+              to (index_date + weight_days_after), calculated as ((end_weight - start_weight) / start_weight) * 100
+            - hypotension : bool, True if ystolic blood pressure <90 mmHg on ≥2 separate readings between (index_date - vital_summary_lookback) 
+              and (index_date + weight_days_after)
+            - tachycardia : bool, True if heart rate >100 bpm on ≥2 separate readings between (index_date - vital_summary_lookback) 
+              and (index_date + weight_days_after)
+            - fevers : bool, True if temperature >38°C on ≥2 separate readings between (index_date - vital_summary_lookback) 
+              and (index_date + weight_days_after)
+
+        Notes
+        -----
+        BMI is calculated using weight closest to index date within specified window while height outside the specified window may be used. The equation used: weight (kg)/height (m)^2
+        Vital sign thresholds:
+            * Hypotension: systolic BP <90 mmHg
+            * Tachycardia: HR >100 bpm
+            * Fever: temperature >38°C
+        Duplicate PatientIDs are logged as warnings but retained in output
+        Results are stored in self.vitals_df attribute
+        """
+
+        # Input validation
+        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not index_date_column or index_date_column not in index_date_df.columns:
+            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+        
+        if not isinstance(weight_days_before, int) or weight_days_before < 0:
+                raise ValueError("weight_days_before must be a non-negative integer")
+        if not isinstance(weight_days_after, int) or weight_days_after < 0:
+            raise ValueError("weight_days_after must be a non-negative integer")
+        if not isinstance(vital_summary_lookback, int) or vital_summary_lookback < 0:
+            raise ValueError("vital_summary_lookback must be a non-negative integer")
+
+        try:
+            df = pd.read_csv(file_path, low_memory = False)
+            logging.info(f"Successfully read Vitals.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+
+            df['TestDate'] = pd.to_datetime(df['TestDate'])
+            df['TestResult'] = pd.to_numeric(df['TestResult'], errors = 'coerce').astype('float')
+
+            index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+
+            # Select PatientIDs that are included in the index_date_df the merge on 'left'
+            df = df[df.PatientID.isin(index_date_df.PatientID)]
+            df = pd.merge(
+                df,
+                index_date_df[['PatientID', index_date_column]],
+                on = 'PatientID',
+                how = 'left'
+                )
+            logging.info(f"Successfully merged Vitals.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+                        
+            # Create new variable 'index_to_vital' that notes difference in days between vital date and index date
+            df['index_to_vital'] = (df['TestDate'] - df[index_date_column]).dt.days
+            
+            # Select weight vitals, impute missing TestResultCleaned, and filter for weights in selected window  
+            weight_df = df.query('Test == "body weight"')
+            mask_needs_imputation = weight_df['TestResultCleaned'].isna() & weight_df['TestResult'].notna()
+            
+            imputed_weights = weight_df.loc[mask_needs_imputation, 'TestResult'].apply(
+                lambda x: x/2.2046 if x > 100  # Convert to kg if likely lbs (>100)
+                else x if x < 60  # Keep as is if likely kg (<60)
+                else None  # Leave as null if ambiguous
+                )
+            
+            weight_df.loc[mask_needs_imputation, 'TestResultCleaned'] = imputed_weights
+            weight_df = weight_df.query('TestResultCleaned > 0')
+            
+            df_weight_filtered = weight_df[
+                (weight_df['index_to_vital'] <= weight_days_after) & 
+                (weight_df['index_to_vital'] >= -weight_days_before)].copy()
+
+            # Select weight closest to index date 
+            weight_index_df = (
+                    df_weight_filtered
+                    .assign(abs_days_to_index = lambda x: abs(x['index_to_vital']))
+                    .sort_values(
+                        by=['PatientID', 'abs_days_to_index', 'TestResultCleaned'], 
+                        ascending=[True, True, True]) # Last True selects smallest weight for ties 
+                    .groupby('PatientID')
+                    .first()
+                    .reset_index()
+                    [['PatientID', 'TestResultCleaned']]
+                    .rename(columns = {'TestResultCleaned': 'weight'})
+                    )
+            
+            # Impute missing TestResultCleaned heights using TestResult 
+            height_df = df.query('Test == "body height"')
+            mask_needs_imputation = height_df['TestResultCleaned'].isna() & height_df['TestResult'].notna()
+                
+            imputed_heights = height_df.loc[mask_needs_imputation, 'TestResult'].apply(
+                lambda x: x * 2.54 if 55 <= x <= 80  # Convert to cm if likely inches (about 4'7" to 6'7")
+                else x if 140 <= x <= 220  # Keep as is if likely cm (about 4'7" to 7'2")
+                else None  # Leave as null if implausible or ambiguous
+                )
+
+            height_df.loc[mask_needs_imputation, 'TestResultCleaned'] = imputed_heights
+
+            # Select mean height for patients across all time points
+            height_df = (
+                height_df
+                .groupby('PatientID')['TestResultCleaned'].mean()
+                .reset_index()
+                .assign(TestResultCleaned = lambda x: x['TestResultCleaned']/100)
+                .rename(columns = {'TestResultCleaned': 'height'})
+                )
+            
+            # Merge height_df with weight_df and calculate BMI
+            weight_index_df = pd.merge(weight_index_df, height_df, on = 'PatientID', how = 'left')
+            
+            # Check if both weight and height are present
+            has_both_measures = weight_index_df['weight'].notna() & weight_index_df['height'].notna()
+            
+            # Only calculate BMI where both measurements exist
+            weight_index_df.loc[has_both_measures, 'bmi'] = (
+                weight_index_df.loc[has_both_measures, 'weight'] / 
+                weight_index_df.loc[has_both_measures, 'height']**2
+            )
+
+            # Replace implausible BMI values with NaN
+            implausible_bmi = weight_index_df['bmi'] < 13
+            weight_index_df.loc[implausible_bmi, 'bmi'] = np.nan
+                    
+            weight_index_df = weight_index_df.drop(columns=['height'])
+
+            # Calculate change in weight 
+            df_change_weight_filtered = weight_df[
+                (weight_df['index_to_vital'] <= weight_days_after) & 
+                (weight_df['index_to_vital'] >= -vital_summary_lookback)].copy()
+            
+            change_weight_df = (
+                df_change_weight_filtered
+                .sort_values(['PatientID', 'TestDate'])
+                .groupby('PatientID')
+                .filter(lambda x: len(x) >= 2) # Only calculate change in weight for patients >= 2 weight readings
+                .groupby('PatientID')
+                .agg({'TestResultCleaned': lambda x:
+                    ((x.iloc[-1]-x.iloc[0])/x.iloc[0])*100 if x.iloc[0] != 0 and pd.notna(x.iloc[0]) and pd.notna(x.iloc[-1]) # (end-start)/start
+                    else None
+                    })
+                .reset_index()
+                .rename(columns = {'TestResultCleaned': 'percent_change_weight'})
+                )
+
+            # Calculate hypotension 
+            df_summary_filtered = df[
+                (df['index_to_vital'] <= weight_days_after) & 
+                (df['index_to_vital'] >= -vital_summary_lookback)].copy()
+            
+            hypotension_df = (
+                df_summary_filtered
+                .query("Test == 'systolic blood pressure'")
+                .sort_values(['PatientID', 'TestDate'])
+                .groupby('PatientID')
+                .agg({
+                    'TestResult': lambda x: (
+                        sum(x < 90) >= 2) # True if 2 readings of systolic <90
+                })
+                .reset_index()
+                .rename(columns = {'TestResult': 'hypotension'})
+                )
+
+            # Calculate tachycardia
+            tachycardia_df = (
+                df_summary_filtered 
+                .query("Test == 'heart rate'")
+                .sort_values(['PatientID', 'TestDate'])
+                .groupby('PatientID')
+                .agg({
+                    'TestResult': lambda x: (
+                        sum(x > 100) >= 2) # True if 2 readings of heart rate >100 
+                })
+                .reset_index()
+                .rename(columns = {'TestResult': 'tachycardia'})
+                )
+
+            # Calculate fevers 
+            fevers_df = (
+                df_summary_filtered 
+                .query("Test == 'body temperature'")
+            )
+
+            # Any temperature >45 is presumed F, otherwise C
+            fevers_df.loc[:, 'TestResult'] = np.where(fevers_df['TestResult'] > 45,
+                                                    (fevers_df['TestResult'] - 32) * 5/9,
+                                                    fevers_df['TestResult'])
+
+            fevers_df = (
+                fevers_df
+                .sort_values(['PatientID', 'TestDate'])
+                .groupby('PatientID')
+                .agg({
+                    'TestResult': lambda x: sum(x >= 38) >= 2 # True if 2 readings of temperature >38C
+                })
+                .reset_index()
+                .rename(columns={'TestResult': 'fevers'})
+            )
+
+            # Merge dataframes 
+            final_df = pd.merge(weight_index_df, change_weight_df, on = 'PatientID', how = 'outer')
+            final_df = pd.merge(final_df, hypotension_df, on = 'PatientID', how = 'outer')
+            final_df = pd.merge(final_df, tachycardia_df, on = 'PatientID', how = 'outer')
+            final_df = pd.merge(final_df, fevers_df, on = 'PatientID', how = 'outer')
+
+            boolean_columns = ['hypotension', 'tachycardia', 'fevers']
+            for col in boolean_columns:
+                final_df[col] = final_df[col].astype('boolean')
+            
+            final_df = final_df.fillna({'hypotension': False,
+                                        'tachycardia': False, 
+                                        'fevers': False})
+            
+            # Check for duplicate PatientIDs
+            if len(final_df) > final_df['PatientID'].nunique():
+                logging.error(f"Duplicate PatientIDs found")
+                return None
+
+            logging.info(f"Successfully processed Vitals.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+            self.vitals_df = final_df
+            return final_df
+
+        except Exception as e:
+            logging.error(f"Error processing Vitals.csv file: {e}")
+            return None
+        
+    def process_labs(self, 
+                     file_path: str,
+                     index_date_df: pd.DataFrame,
+                     index_date_column: str, 
+                     additional_loinc_mappings: dict = None,
+                     days_before: int = 90,
+                     days_after: int = 0,
+                     summary_lookback: int = 180) -> pd.DataFrame:
+        """
+        Processes Lab.csv to determine patient lab values within a specified time window relative to an index date. Returns CBC and CMP values 
+        nearest to index date, along with summary statistics (max, min, standard deviation, and slope) calculated over the summary period.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to Labs.csv file
+        index_date_df : pd.DataFrame
+            DataFrame containing PatientID and index dates. Only labs for PatientIDs present in this DataFrame will be processed
+        index_date_column : str
+            Column name in index_date_df containing the index date
+        additional_loinc_mappings : dict, optional
+            Dictionary of additional lab names and their LOINC codes to add to the default mappings.
+            Example: {'new_lab': ['1234-5'], 'another_lab': ['6789-0', '9876-5']}
+        days_before : int, optional
+            Number of days before the index date to include for baseline lab values. Must be >= 0. Default: 90
+        days_after : int, optional
+            Number of days after the index date to include for baseline lab values. Also used as the end point for 
+            summary statistics calculations. Must be >= 0. Default: 0
+        summary_lookback : int, optional
+            Number of days before index date to begin analyzing summary statistics. Analysis period extends 
+            from (index_date - summary_lookback) to (index_date + days_after). Must be >= 0. Default: 180
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : unique patient identifier
+
+            Baseline values (closest to index date within days_before/days_after window):
+            - hemoglobin : float, g/dL
+            - wbc : float, K/uL
+            - platelet : float, 10^9/L
+            - creatinine : float, mg/dL
+            - bun : float, mg/dL
+            - chloride : float, mmol/L
+            - bicarb : float, mmol/L
+            - potassium : float, mmol/L
+            - calcium : float, mg/dL
+            - alp : float, U/L
+            - ast : float, U/L
+            - alt : float, U/L
+            - total_bilirubin : float, mg/dL
+            - albumin : float, g/L
+
+            Summary statistics (calculated over period from index_date - summary_lookback to index_date + days_after):
+            For each lab above, includes:
+            - {lab}_max : float, maximum value
+            - {lab}_min : float, minimum value
+            - {lab}_std : float, standard deviation
+            - {lab}_slope : float, rate of change over time
+
+        Notes
+        -----
+        Duplicate PatientIDs are logged as warnings but retained in output
+        Results are stored in self.labs_df attribute
+        """
+
+        # Input validation
+        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not index_date_column or index_date_column not in index_date_df.columns:
+            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+        
+        if not isinstance(days_before, int) or days_before < 0:
+                raise ValueError("days_before must be a non-negative integer")
+        if not isinstance(days_after, int) or days_after < 0:
+            raise ValueError("days_after must be a non-negative integer")
+        if not isinstance(summary_lookback, int) or summary_lookback < 0:
+            raise ValueError("summary_lookback must be a non-negative integer")
+        
+        # Add user-provided mappings if they exist
+        if additional_loinc_mappings is not None:
+            if not isinstance(additional_loinc_mappings, dict):
+                raise ValueError("Additional LOINC mappings must be provided as a dictionary")
+            if not all(isinstance(v, list) for v in additional_loinc_mappings.values()):
+                raise ValueError("LOINC codes must be provided as lists of strings")
+                
+            # Update the default mappings with additional ones
+            self.LOINC_MAPPINGS.update(additional_loinc_mappings)
+
+        try:
+            df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Lab.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+
+            df['ResultDate'] = pd.to_datetime(df['ResultDate'])
+            df['TestDate'] = pd.to_datetime(df['TestDate'])
+            df['ResultDate'] = np.where(df['ResultDate'].isna(), df['TestDate'], df['ResultDate'])
+
+            index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+
+            # Select PatientIDs that are included in the index_date_df the merge on 'left'
+            df = df[df.PatientID.isin(index_date_df.PatientID)]
+            df = pd.merge(
+                df,
+                index_date_df[['PatientID', index_date_column]],
+                on = 'PatientID',
+                how = 'left'
+                )
+            logging.info(f"Successfully merged Lab.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+            
+            # Flatten LOINC codes 
+            all_loinc_codes = sum(self.LOINC_MAPPINGS.values(), [])
+
+            # Filter for LOINC codes 
+            df = df[df['LOINC'].isin(all_loinc_codes)].copy()
+
+            # Map LOINC codes to lab names
+            for lab_name, loinc_codes in self.LOINC_MAPPINGS.items():
+                mask = df['LOINC'].isin(loinc_codes)
+                df.loc[mask, 'lab_name'] = lab_name
+
+            # Impute missing hemoglobin 
+            mask = df.query('lab_name == "hemoglobin" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
+                df.loc[mask, 'TestResult']
+                .str.replace('L', '')
+                .str.strip(),
+                errors = 'coerce'
+                )
+
+            # Impute missing wbc
+            mask = df.query('lab_name == "wbc" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 2) & (x <= 15))
+                )
+            
+            # Impute missing platelets 
+            mask = df.query('lab_name == "platelet" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 50) & (x <= 450))
+                )
+            
+            # Correct units for hemoglobin, WBC, and platelets
+            # Convert 10*3/L values
+            mask = (
+                (df['TestUnits'] == '10*3/L') & 
+                (df['lab_name'].isin(['wbc', 'platelet']))
+            )
+            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] * 1000000
+
+            # Convert g/uL values 
+            mask = (
+                (df['TestUnits'] == 'g/uL') & 
+                (df['lab_name'] == 'hemoglobin')
+            )
+            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] / 100000   
+
+            # Impute missing creatinine 
+            mask = df.query('lab_name == "creatinine" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 0.3) & (x <= 3))
+                )
+            
+            # Impute missing bun
+            mask = df.query('lab_name == "bun" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 5) & (x <= 50))
+                )
+            
+            # Impute missing chloride 
+            mask = df.query('lab_name == "chloride" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 80) & (x <= 120))
+                )
+            
+            # Impute missing bicarb 
+            mask = df.query('lab_name == "bicarb" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 15) & (x <= 35))
+                )
+
+            # Impute missing potassium 
+            mask = df.query('lab_name == "potassium" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 2.5) & (x <= 6))
+                )
+            
+            # Impute missing calcium 
+            mask = df.query('lab_name == "calicum" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 7) & (x <= 14))
+                )
+            
+            # Impute missing alp
+            mask = df.query('lab_name == "alp" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 40) & (x <= 500))
+                )
+            
+            # Impute missing ast
+            mask = df.query('lab_name == "ast" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
+                df.loc[mask, 'TestResult']
+                .str.replace('<', '')
+                .str.strip(),
+                errors = 'coerce'
+                )
+            
+            # Impute missing alt
+            mask = df.query('lab_name == "alt" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
+                df.loc[mask, 'TestResult']
+                .str.replace('<', '')
+                .str.strip(),
+                errors = 'coerce'
+                )
+            
+            # Impute missing total_bilirbuin
+            mask = df.query('lab_name == "total_bilirubin" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
+                df.loc[mask, 'TestResult']
+                .str.replace('<', '')
+                .str.strip(),
+                errors = 'coerce'
+                )
+            
+            # Impute missing albumin
+            mask = df.query('lab_name == "albumin" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
+                .where(lambda x: (x >= 1) & (x <= 6)) * 10
+                )
+
+            # Filter for desired window period for baseline labs
+            df['index_to_lab'] = (df['ResultDate'] - df[index_date_column]).dt.days
+            
+            df_lab_index_filtered = df[
+                (df['index_to_lab'] <= days_after) & 
+                (df['index_to_lab'] >= -days_before)].copy()
+            
+            lab_df = (
+                df_lab_index_filtered
+                .assign(abs_index_to_lab = lambda x: abs(x['index_to_lab']))
+                .sort_values('abs_index_to_lab')  
+                .groupby(['PatientID', 'lab_name'])
+                .first()  
+                .reset_index()
+                .pivot(index = 'PatientID', columns = 'lab_name', values = 'TestResultCleaned')
+                .rename_axis(columns = None)
+                .reset_index()
+            )
+
+            # Filter for desired window period for summary labs 
+            df_lab_summary_filtered = df[
+                (df['index_to_lab'] <= days_after) & 
+                (df['index_to_lab'] >= -summary_lookback)].copy()
+            
+            max_df = (
+                df_lab_summary_filtered
+                .groupby(['PatientID', 'lab_name'])['TestResultCleaned'].max()
+                .reset_index()
+                .pivot(index = 'PatientID', columns = 'lab_name', values = 'TestResultCleaned')
+                .rename_axis(columns = None)
+                .rename(columns = lambda x: f'{x}_max')
+                .reset_index()
+                )
+            
+            min_df = (
+                df_lab_summary_filtered
+                .groupby(['PatientID', 'lab_name'])['TestResultCleaned'].min()
+                .reset_index()
+                .pivot(index = 'PatientID', columns = 'lab_name', values = 'TestResultCleaned')
+                .rename_axis(columns = None)
+                .rename(columns = lambda x: f'{x}_min')
+                .reset_index()
+                )
+            
+            std_df = (
+                df_lab_summary_filtered
+                .groupby(['PatientID', 'lab_name'])['TestResultCleaned'].std()
+                .reset_index()
+                .pivot(index = 'PatientID', columns = 'lab_name', values = 'TestResultCleaned')
+                .rename_axis(columns = None)
+                .rename(columns = lambda x: f'{x}_std')
+                .reset_index()
+                )
+            
+            slope_df = (
+                df_lab_index_filtered
+                .groupby(['PatientID', 'lab_name'])[['index_to_lab', 'TestResultCleaned']]
+                .apply(lambda x: np.polyfit(x['index_to_lab'],
+                                        x['TestResultCleaned'],
+                                        1)[0]
+                    if (x['TestResultCleaned'].notna().sum() > 1 and # at least 2 non-NaN lab values
+                        x['index_to_lab'].notna().sum() > 1 and # at least 2 non-NaN time points
+                        len(x['index_to_lab'].unique()) > 1)  # time points are not all the same
+                    else np.nan)
+                .reset_index()
+                .pivot(index = 'PatientID', columns = 'lab_name', values = 0)
+                .rename_axis(columns = None)
+                .rename(columns = lambda x: f'{x}_slope')
+                .reset_index()
+                )
+            
+            # Merging lab dataframes 
+            final_df = pd.merge(lab_df, max_df, on = 'PatientID', how = 'outer')
+            final_df = pd.merge(final_df, min_df, on = 'PatientID', how = 'outer')
+            final_df = pd.merge(final_df, std_df, on = 'PatientID', how = 'outer')
+            final_df = pd.merge(final_df, slope_df, on = 'PatientID', how = 'outer')
+
+            # Check for duplicate PatientIDs
+            if len(final_df) > final_df['PatientID'].nunique():
+                logging.error(f"Duplicate PatientIDs found")
+                return None
+
+            logging.info(f"Successfully processed Lab.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+            return final_df
+
+        except Exception as e:
+            logging.error(f"Error processing Lab.csv file: {e}")
             return None
             
 
