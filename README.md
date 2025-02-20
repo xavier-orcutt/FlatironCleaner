@@ -15,7 +15,7 @@ Each cancer type has its own dedicated data processor class (e.g., `DataProcesso
 - `process_biomarkers()`: Cleans Biomarkers.csv
 - `process_insurance()`: Cleans Insurance.csv
 - `process_mortality()`: Cleans Enhanced_Mortality_V2.csv
-- `process_mortality()`: Cleans Practice.csv
+- `process_practice()`: Cleans Practice.csv
 
 Currently available processors:
 - Advanced Urothelial Cancer (`DataProcessorUrothelial`)
