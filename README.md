@@ -4,13 +4,7 @@
 
 ## Overview
 
-The pipeline automates several key data processing steps:
-- Standardizes variable names and data types across cancers
-- Ensures unique PatientIDs per row
-- Applies cancer-specific cleaning rules
-- Provides detailed logging of transformations
-
-Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest:
+Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest: 
 
 - `process_demographics()`: Cleans Demographics.csv
 - `process_ecog()`: Cleans ECOG.csv
