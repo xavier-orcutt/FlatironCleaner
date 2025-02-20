@@ -15,6 +15,7 @@ if __name__ == "__main__":
     vitals_file_path = "data/Vitals.csv"
     lab_file_path =  "data/Lab.csv"
     medication_file_path =  "data/MedicationAdministration.csv"
+    diagnosis_file_path = "data/Diagnosis.csv"
 
     df = pd.read_csv(enhanced_file_path)
     
@@ -65,9 +66,18 @@ if __name__ == "__main__":
                                                   index_date_column='AdvancedDiagnosisDate',
                                                   days_before=180,
                                                   days_after=0)
+    
+
+    diagnosis_df = processor.process_diagnosis(diagnosis_file_path,
+                                               index_date_df = df,
+                                               index_date_column='AdvancedDiagnosisDate',
+                                               days_before=None,
+                                               days_after=0)
+    
+
 
     # Merge datasets
-    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df, ecog_df, vitals_df, medication_df)
+    merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df, ecog_df, vitals_df, medication_df, diagnosis_df)
     
     if merged_data is not None:
         print(merged_data.head())
