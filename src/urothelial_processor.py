@@ -438,11 +438,11 @@ class DataProcessorUrothelial:
         'Commercial Health Plan': 'commercial',
         'Medicare': 'medicare',
         'Medicaid': 'medicaid',
-        'Other Payer - Type Unknown': 'other',
-        'Other Government Program': 'other',
-        'Patient Assistance Program': 'other',
-        'Self Pay': 'other',
-        'Workers Compensation': 'other'
+        'Other Payer - Type Unknown': 'other_insurance',
+        'Other Government Program': 'other_insurance',
+        'Patient Assistance Program': 'other_insurance',
+        'Self Pay': 'other_insurance',
+        'Workers Compensation': 'other_insurance'
     }
 
 
@@ -576,11 +576,10 @@ class DataProcessorUrothelial:
             return None
     
     def process_demographics(self, 
-                            file_path: str,
-                            patient_ids: list = None, 
-                            index_date_df: pd.DataFrame = None,
-                            index_date_column: str = None,
-                            drop_state: bool = True) -> pd.DataFrame:
+                             file_path: str,
+                             index_date_df: pd.DataFrame,
+                             index_date_column: str,
+                             drop_state: bool = True) -> pd.DataFrame:
         """
         Processes Demographics.csv by standardizing categorical variables, mapping states 
         to census regions, and calculating age at index date if provided.
@@ -589,12 +588,10 @@ class DataProcessorUrothelial:
         ----------
         file_path : str
             Path to Demographics.csv file
-        patient_ids : list, optional
-            List of specific PatientIDs to process. If None, processes all patients
         index_dates_df : pd.DataFrame, optional
-            DataFrame containing PatientID and index dates for age calculation
+            DataFrame containing PatientID and index dates. Only demographics for PatientIDs present in this DataFrame will be processed
         index_date_column : str, optional
-            Column name in index_date_df containing dates for age calculation
+            Column name in index_date_df containing index date
         drop_state : bool, default = True
             If True, drops State column after mapping to regions
 
@@ -615,54 +612,41 @@ class DataProcessorUrothelial:
         - Duplicate PatientIDs are logged as warnings if found
         - Processed DataFrame is stored in self.demographics_df
         """
+        # Input validation
+        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not index_date_column or index_date_column not in index_date_df.columns:
+            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+        
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
-            # Filter for specific PatientIDs if provided
-            if patient_ids is not None:
-                logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
-                df = df[df['PatientID'].isin(patient_ids)]
-                logging.info(f"Successfully filtered Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
-
             # Initial data type conversions
-            df['BirthYear'] = df['BirthYear'].astype('int64')
+            df['BirthYear'] = df['BirthYear'].astype('Int64')
             df['Gender'] = df['Gender'].astype('category')
             df['State'] = df['State'].astype('category')
-        
-            # Age calculation block (if index dates provided)
-            if index_date_df is not None:
-                # Validate index data
-                if 'PatientID' not in index_date_df.columns:
-                    logging.error("index_dates_df must contain 'PatientID' column")
-                    return None
-            
-                if index_date_column is None:
-                    logging.error("index_date_column must be specified when index_date_df is provided")
-                    return None
-                
-                if index_date_column not in index_date_df.columns:
-                    logging.error(f"Column '{index_date_column}' not found in index_date_df")
-                    return None
 
-                # Process dates and calculate age
-                index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
-                df = pd.merge(
-                    df,
-                    index_date_df[['PatientID', index_date_column]], 
-                    on = 'PatientID',
-                    how = 'left'
-                )
-        
-                df['age'] = df[index_date_column].dt.year - df['BirthYear']
+            index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
 
-                # Age validation
-                mask_invalid_age = (df['age'] < 18) | (df['age'] > 120)
-                if mask_invalid_age.any():
-                    logging.warning(f"Found {mask_invalid_age.sum()} ages outside valid range (18-120)")
+            # Select PatientIDs that are included in the index_date_df the merge on 'left'
+            df = df[df.PatientID.isin(index_date_df.PatientID)]
+            df = pd.merge(
+                df,
+                index_date_df[['PatientID', index_date_column]], 
+                on = 'PatientID',
+                how = 'left'
+            )
+    
+            df['age'] = df[index_date_column].dt.year - df['BirthYear']
 
-                # Drop the index date column and BirthYear after age calculation
-                df = df.drop(columns = [index_date_column, 'BirthYear'])
+            # Age validation
+            mask_invalid_age = (df['age'] < 18) | (df['age'] > 120)
+            if mask_invalid_age.any():
+                logging.warning(f"Found {mask_invalid_age.sum()} ages outside valid range (18-120)")
+
+            # Drop the index date column and BirthYear after age calculation
+            df = df.drop(columns = [index_date_column, 'BirthYear'])
 
             # Race and Ethnicity processing
             # If Race == 'Hispanic or Latino', fill 'Hispanic or Latino' for Ethnicity
@@ -1092,6 +1076,7 @@ class DataProcessorUrothelial:
         Notes
         ------
         Missing ResultDate is imputed with SpecimenReceivedDate.
+        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without any biomarker tests
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.biomarkers_df
         """
@@ -1186,13 +1171,14 @@ class DataProcessorUrothelial:
             pdl1_staining_df['pdl1_percent_staining'] = pdl1_staining_df['pdl1_ordinal_value'].map(reverse_pdl1_dict)
             pdl1_staining_df = pdl1_staining_df.drop(columns = ['pdl1_ordinal_value'])
 
-            # Merge dataframes
-            final_df = pd.merge(pdl1_df, pdl1_staining_df, on = 'PatientID', how = 'left')
-            final_df = pd.merge(final_df, fgfr_df, on = 'PatientID', how = 'outer')
+            # Merge dataframes -- start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
+            final_df = pd.merge(final_df, pdl1_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, pdl1_staining_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, fgfr_df, on = 'PatientID', how = 'left')
 
             final_df['pdl1_status'] = final_df['pdl1_status'].astype('category')
             final_df['fgfr_status'] = final_df['fgfr_status'].astype('category')
-
 
             staining_dtype = pd.CategoricalDtype(
                 categories = ['0%', '< 1%', '1%', '2% - 4%', '5% - 9%', '10% - 19%',
@@ -1221,12 +1207,23 @@ class DataProcessorUrothelial:
                      index_date_df: pd.DataFrame,
                      index_date_column: str, 
                      days_before: int = 90,
-                     days_after: int = 0) -> pd.DataFrame:
+                     days_after: int = 0, 
+                     days_before_further: int = 180) -> pd.DataFrame:
         """
-        Processes ECOG.csv to determine patient ECOG scores relative to a reference index date.
+        Processes ECOG.csv to determine patient ECOG scores and progression patterns relative 
+        to a reference index date. Uses two different time windows for distinct clinical purposes:
+        
+        1. A smaller window near the index date to find the most clinically relevant ECOG score
+           that represents the patient's status at that time point
+        2. A larger lookback window to detect clinically significant ECOG progression,
+           specifically looking for patients whose condition worsened from ECOG 0-1 to ≥2
+        
+        This dual-window approach allows for both accurate point-in-time assessment and
+        detection of deteriorating performance status over a clinically meaningful period.
+
         For each patient, finds:
         1. The ECOG score closest to index date (selecting higher score in case of ties)
-        2. Whether ECOG newly increased to ≥2 from 0-1 in the prior 6 months
+        2. Whether ECOG newly increased to ≥2 from 0-1 in the lookback period
 
         Parameters
         ----------
@@ -1240,19 +1237,23 @@ class DataProcessorUrothelial:
             Number of days before the index date to include. Must be >= 0. Default: 90
         days_after : int, optional
             Number of days after the index date to include. Must be >= 0. Default: 0
-        
+        days_before_futher : int, optional
+            Number of days before index date to look for ECOG progression (0-1 to ≥2). Must be >= 0. Consdier
+            selecting a larger integer than days_before to capture meaningful clinical deterioration over time.
+            Default: 180
+            
         Returns
         -------
         pd.DataFrame
             Processed DataFrame containing:
             - PatientID : unique patient identifier
-            - ecog_index : ECOG score (0-5) closest to index date, categorical
+            - ecog_index : ECOG score (0-5) closest to index date, ordered categorical
             - ecog_newly_gte2 : binary indicator (0/1) for ECOG increased from 0-1 to ≥2 in 6 months before index
 
         Notes
         ------
-        When multiple ECOG scores are equidistant to index date, selects higher score
-        Uses fixed 6-month lookback for newly_gte2 calculation regardless of days_before
+        When multiple ECOG scores are equidistant to index date, the higher score is selected
+        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without ECOG values
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.ecog_df
         """
@@ -1291,13 +1292,13 @@ class DataProcessorUrothelial:
             df['index_to_ecog'] = (df['EcogDate'] - df[index_date_column]).dt.days
             
             # Select ECOG that fall within desired before and after index date
-            df_filtered = df[
+            df_closest_window = df[
                 (df['index_to_ecog'] <= days_after) & 
                 (df['index_to_ecog'] >= -days_before)].copy()
 
             # Find EcogValue closest to index date within specified window periods
             ecog_index_df = (
-                df_filtered
+                df_closest_window
                 .assign(abs_days_to_index = lambda x: abs(x['index_to_ecog']))
                 .sort_values(
                     by=['PatientID', 'abs_days_to_index', 'EcogValue'], 
@@ -1312,15 +1313,14 @@ class DataProcessorUrothelial:
                     )
                 )
             
-            # Find EcogValue newly greater than or equal to 2 by time of index date with 6 month look back using pre-specified days_after
-            # First get 6-month window data 
-            df_6month = df[
+            # # Process 2: Check for ECOG progression in wider window
+            df_progression_window = df[
                     (df['index_to_ecog'] <= days_after) & 
-                    (df['index_to_ecog'] >= -180)].copy()
+                    (df['index_to_ecog'] >= -days_before_further)].copy()
             
             # Create flag for ECOG newly greater than or equal to 2
             ecog_newly_gte2_df = (
-                df_6month
+                df_progression_window
                 .sort_values(['PatientID', 'EcogDate']) 
                 .groupby('PatientID')
                 .agg({
@@ -1335,11 +1335,14 @@ class DataProcessorUrothelial:
                 .rename(columns={'EcogValue': 'ecog_newly_gte2'})
             )
 
-            # Merge back with df_filtered
-            unique_patient_df = df[['PatientID']].drop_duplicates()
-            final_df = pd.merge(unique_patient_df, ecog_index_df, on = 'PatientID', how = 'left')
+            # Merge dataframes - start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
+            final_df = pd.merge(final_df, ecog_index_df, on = 'PatientID', how = 'left')
             final_df = pd.merge(final_df, ecog_newly_gte2_df, on = 'PatientID', how = 'left')
-            final_df['ecog_newly_gte2'] = final_df['ecog_newly_gte2'].fillna(0).astype(int)
+            
+            # Assign datatypes 
+            final_df['ecog_index'] = final_df['ecog_index'].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4, 5], ordered=True))
+            final_df['ecog_newly_gte2'] = final_df['ecog_newly_gte2'].astype('Int64')
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
@@ -1364,7 +1367,12 @@ class DataProcessorUrothelial:
                        vital_summary_lookback: int = 180) -> pd.DataFrame:
         """
         Processes Vitals.csv to determine patient BMI, weight, change in weight, and vital sign abnormalities
-        within a specified time window relative to an index date. 
+        within a specified time window relative to an index date. Uses two different time windows for distinct 
+        clinical purposes:
+        
+        1. A smaller window near the index date to find weight and BMI at that time point
+        2. A larger lookback window to detect clinically significant vital sign abnormalities 
+        suggesting possible deterioration
 
         Parameters
         ----------
@@ -1403,10 +1411,13 @@ class DataProcessorUrothelial:
         Notes
         -----
         BMI is calculated using weight closest to index date within specified window while height outside the specified window may be used. The equation used: weight (kg)/height (m)^2
+        BMI <13 are considered implausible and removed
         Vital sign thresholds:
             * Hypotension: systolic BP <90 mmHg
             * Tachycardia: HR >100 bpm
             * Fever: temperature >38°C
+        TestDate rather than ResultDate is used since TestDate is always populated and, for vital signs, the measurement date (TestDate) and result date (ResultDate) should be identical since vitals are recorded in real-time
+        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without weight, BMI, or percent_change_weight, but set to 0 for hypotension, tachycardia, and fevers
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.vitals_df attribute
         """
@@ -1589,19 +1600,17 @@ class DataProcessorUrothelial:
                 .rename(columns={'TestResult': 'fevers'})
             )
 
-            # Merge dataframes 
-            final_df = pd.merge(weight_index_df, change_weight_df, on = 'PatientID', how = 'outer')
-            final_df = pd.merge(final_df, hypotension_df, on = 'PatientID', how = 'outer')
-            final_df = pd.merge(final_df, tachycardia_df, on = 'PatientID', how = 'outer')
-            final_df = pd.merge(final_df, fevers_df, on = 'PatientID', how = 'outer')
+            # Merge dataframes - start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
+            final_df = pd.merge(final_df, weight_index_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, change_weight_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, hypotension_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, tachycardia_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, fevers_df, on = 'PatientID', how = 'left')
 
             boolean_columns = ['hypotension', 'tachycardia', 'fevers']
             for col in boolean_columns:
-                final_df[col] = final_df[col].fillna(0).astype(int)
-            
-            final_df = final_df.fillna({'hypotension': False,
-                                        'tachycardia': False, 
-                                        'fevers': False})
+                final_df[col] = final_df[col].fillna(0).astype('Int64')
             
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
@@ -1679,6 +1688,7 @@ class DataProcessorUrothelial:
 
         Notes
         -----
+        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without lab values 
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.labs_df attribute
         """
@@ -1929,11 +1939,13 @@ class DataProcessorUrothelial:
                 .reset_index()
                 )
             
-            # Merging lab dataframes 
-            final_df = pd.merge(lab_df, max_df, on = 'PatientID', how = 'outer')
-            final_df = pd.merge(final_df, min_df, on = 'PatientID', how = 'outer')
-            final_df = pd.merge(final_df, std_df, on = 'PatientID', how = 'outer')
-            final_df = pd.merge(final_df, slope_df, on = 'PatientID', how = 'outer')
+            # Merge dataframes - start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
+            final_df = pd.merge(final_df, lab_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, max_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, min_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, std_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, slope_df, on = 'PatientID', how = 'left')
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
@@ -1988,10 +2000,11 @@ class DataProcessorUrothelial:
 
         Notes
         -----
-        Returns boolean indicators for each medication class, where False indicates either no medication or medication outside the specified time window
+        All PatientIDs from index_date_df are included in the output
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.medicines_df attribute
         """
+        
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
@@ -2161,21 +2174,24 @@ class DataProcessorUrothelial:
                 .PatientID
             ).unique()
 
-            # Merge arrays
-            # Create the dataframe
-            final_df = pd.DataFrame(index = pd.Series(list(index_date_df.PatientID), name = 'PatientID'))
+            # Create dictionary of medication categories and their respective IDs
+            med_categories = {
+                'anticoagulated': anticoagulated_IDs,
+                'opioid': opioid_IDs,
+                'steroid': steroid_IDs,
+                'antibiotic': antibiotic_IDs,
+                'diabetic': diabetic_IDs,
+                'antidepressant': antidepressant_IDs,
+                'bone_therapy': bta_IDs,
+                'immunosuppressed': immunosuppressed_IDs
+            }
+
+            # Start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
 
             # Add binary (0/1) columns for each medication category
-            final_df['anticoagulated'] = final_df.index.isin(anticoagulated_IDs).astype(int)
-            final_df['opioid'] = final_df.index.isin(opioid_IDs).astype(int)
-            final_df['steroid'] = final_df.index.isin(steroid_IDs).astype(int)
-            final_df['antibiotic'] = final_df.index.isin(antibiotic_IDs).astype(int)
-            final_df['diabetic'] = final_df.index.isin(diabetic_IDs).astype(int)
-            final_df['antidepressant'] = final_df.index.isin(antidepressant_IDs).astype(int)
-            final_df['bone_therapy'] = final_df.index.isin(bta_IDs).astype(int)
-            final_df['immunosuppressed'] = final_df.index.isin(immunosuppressed_IDs).astype(int)
-
-            final_df = final_df.reset_index()
+            for category, ids in med_categories.items():
+                final_df[category] = final_df['PatientID'].isin(ids).astype('Int64')
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
@@ -2269,6 +2285,7 @@ class DataProcessorUrothelial:
         Maps both ICD-9-CM and ICD-10-CM codes to Elixhauser comorbidities and metastatic sites
         Metastatic cancer and tumor categories are excluded in the Elxihauser comorbidities and van Walravane score as this is intended for an advanced cancer population
         For patients with both ICD-9 and ICD-10 codes, comorbidities and metastatic sites are combined (if a comorbidity is present in either coding system, it is marked as present)
+        All PatientIDs from index_date_df are included in the output and values will be set to 0 for patients with misisng Elixhauser comorbidities or metastasis sites, but NaN for van_walraven_score
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.diagnoses_df attribute
         """
@@ -2413,13 +2430,14 @@ class DataProcessorUrothelial:
 
             df_mets_combined = pd.concat([df9_mets_aligned, df10_mets_aligned]).groupby('PatientID').max().reset_index()
 
-            # Merging dataframes for Elixhauser comorbidities and metastatic sites
-            final_df = pd.merge(df_elix_combined, df_mets_combined, on = 'PatientID', how = 'outer')
-            final_df = final_df.fillna(0)
+            # Start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
+            final_df = pd.merge(final_df, df_elix_combined, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, df_mets_combined, on = 'PatientID', how = 'left')
 
             binary_columns = [col for col in final_df.columns 
                     if col not in ['PatientID', 'van_walraven_score']]
-            final_df[binary_columns] = final_df[binary_columns].astype(int)
+            final_df[binary_columns] = final_df[binary_columns].fillna(0).astype('Int64')
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
@@ -2477,6 +2495,7 @@ class DataProcessorUrothelial:
             - EndDate falls on or after the start of the time window 
         EndDate is missing for most patients
         Missing StartDate values are conservatively imputed with EndDate values
+        All PatientIDs from index_date_df are included in the output
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.insurance_df attribute
         """
@@ -2545,6 +2564,13 @@ class DataProcessorUrothelial:
                 .rename_axis(columns = None)
                 .reset_index()
             )
+
+            # Merger index_date_df to ensure all PatientIDs are included
+            final_df = pd.merge(index_date_df[['PatientID']], final_df, on = 'PatientID', how = 'left')
+            
+            insurance_columns = list(set(self.INSURANCE_MAPPING.values()))
+            for col in insurance_columns:
+                final_df[col] = final_df[col].fillna(0).astype('Int64')
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():

@@ -55,12 +55,12 @@ if __name__ == "__main__":
                                          weight_days_after = 0,
                                          vital_summary_lookback = 180)
     
-    #lab_df = processor.process_labs(lab_file_path,
-    #                                index_date_df=df,
-    #                                index_date_column='AdvancedDiagnosisDate',
-    #                                days_before = 90,
-    #                                days_after = 0,
-    #                                summary_lookback = 180)
+    lab_df = processor.process_labs(lab_file_path,
+                                    index_date_df=df,
+                                    index_date_column='AdvancedDiagnosisDate',
+                                    days_before = 90,
+                                    days_after = 0,
+                                    summary_lookback = 180)
     
     medication_df = processor.process_medications(medication_file_path,
                                                   index_date_df = df,
