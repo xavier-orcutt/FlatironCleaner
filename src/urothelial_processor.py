@@ -445,7 +445,6 @@ class DataProcessorUrothelial:
         'Workers Compensation': 'other_insurance'
     }
 
-
     def __init__(self):
         self.enhanced_df = None
         self.demographics_df = None

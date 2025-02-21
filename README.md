@@ -1,6 +1,6 @@
 # Flatiron Cancer ETL
 
-`flatiron-cancer-etl` is a Python package designed to clean and harmonize Flatiron Health cancer datasets. The pipeline standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types.
+`flatiron-cancer-etl` is a Python package designed to clean and harmonize Flatiron Health cancer data. The pipeline standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types.
 
 ## Overview
 
@@ -17,7 +17,7 @@ Each cancer type has its own dedicated data processor class (e.g., `DataProcesso
 - `process_mortality()`: Cleans Enhanced_Mortality_V2.csv
 - `process_practice()`: Cleans Practice.csv
 
-Currently available processors:
+Currently available processor:
 - Advanced Urothelial Cancer (`DataProcessorUrothelial`)
 
 In development:
@@ -38,6 +38,9 @@ from merge_utils import merge_dataframes
 
 # Initialize the ETL pipeline
 processor = DataProcessorUrothelial()
+
+# Import dataframe with index date of interest for PatientIDs
+df = pd.read_csv('path/to/your/data')
 
 # Load and clean data
 cleaned_ecog_df = processor.process_ecog('path/to/your/ECOG.csv',
