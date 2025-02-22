@@ -4,7 +4,7 @@
 
 ## Overview
 
-Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest. Key features of these fucntion include automated validation checks, standardized variable naming conventions, and consistent handling of missing data. Available functions include: 
+Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest. Available functions include: 
 
 - `process_demographics()`: Cleans Demographics.csv
 - `process_ecog()`: Cleans ECOG.csv
