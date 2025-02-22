@@ -30,8 +30,6 @@ Coming soon:
 
 ## Usage 
 
-See the example notebooks in the example/ directory for usage demonstrations.
-
 ```python
 from urothelial_processor import DataProcessorUrothelial
 from merge_utils import merge_dataframes
@@ -57,6 +55,8 @@ cleaned_medication_df = processor.process_medications('path/to/your/MedicationAd
 
 merged_data = merge_dataframes(cleaned_ecog_df, cleaned_medication_df)
 ```
+
+For a more detailed usage demonstration, see the notebook titled "tutorial" in the example/ directory.
 
 ## Contact
 
