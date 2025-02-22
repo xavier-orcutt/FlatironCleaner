@@ -1,10 +1,10 @@
 # Flatiron Cancer ETL
 
-`flatiron-cancer-etl` is a Python package designed to clean and harmonize Flatiron Health cancer data. The pipeline standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types.
+`flatiron-cancer-etl` is a Python package designed to clean and harmonize Flatiron Health cancer data. The pipeline standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types. The goal is to help researchers maximize insights from the data, significantly reduce time spent on data cleaning, and improve reproducibility. 
 
 ## Overview
 
-Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest: 
+Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest. Key features of these fucntion include automated validation checks, standardized variable naming conventions, and consistent handling of missing data. Available functions include: 
 
 - `process_demographics()`: Cleans Demographics.csv
 - `process_ecog()`: Cleans ECOG.csv
