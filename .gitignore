@@ -8,3 +8,5 @@ myenv/
 
 # macOS system files
 .DS_Store
+example/test_uro.ipynb
+example/Untitled.ipynb

@@ -22,7 +22,7 @@ class DataProcessorUrothelial:
         'Stage I': 'Stage I',
         'Stage 0is': 'Stage 0',
         'Stage 0a': 'Stage 0',
-        'Unknown/not documented': 'Unknown/not documented'
+        'Unknown/not documented': 'unknown'
     }
 
     T_STAGE_MAPPING = {
@@ -40,7 +40,7 @@ class DataProcessorUrothelial:
         'Ta': 'Ta',
         'Tis': 'Tis',
         'TX': 'TX',
-        'Unknown/not documented': 'Unknown/not documented'
+        'Unknown/not documented': 'unknown'
     }
 
     M_STAGE_MAPPING = {
@@ -49,7 +49,7 @@ class DataProcessorUrothelial:
         'M1b': 'M1',
         'M0': 'M0',
         'MX': 'MX',
-        'Unknown/not documented': 'Unknown/not documented'
+        'Unknown/not documented': 'unknown'
     }
 
     SURGERY_TYPE_MAPPING = {
@@ -479,33 +479,46 @@ class DataProcessorUrothelial:
         drop_surgery_type : bool, default=True
             If True, drops original surgery type after creating modified version
         drop_dates : bool, default=True
-            If True, drops date columns after calculating durations
+            If True, drops date columns (DiagnosisDate, AdvancedDiagnosisDate, and SurgeryDate) after calculating durations
 
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - PrimarySite : anatomical site of cancer
-            - SmokingStatus : smoking history
-            - Surgery : binary indicator (0/1) for whether patient had surgery
-            - SurgeryType_mod : consolidated surgery type
-            - days_diagnosis_to_surgery : days from diagnosis to surgery
-            - DiseaseGrade : tumor grade
-            - NStage : lymph node staging
-            - GroupStage_mod : consolidated overall staging (0-IV, Unknown)
-            - TStage_mod : consolidated tumor staging (T0-T4, Ta, Tis, TX, Unknown)
-            - MStage_mod : consolidated metastasis staging (M0, M1, MX, Unknown)
-            - days_diagnosis_to_advanced : days from initial to advanced diagnosis
-            - adv_diagnosis_year : year of advanced diagnosis (categorical)
-            - days_diagnosis_to_adv : days from diagnosis to advanced disease 
+            - PatientID : object
+                unique patient identifier
+            - PrimarySite : category
+                anatomical site of cancer
+            - SmokingStatus : category
+                smoking history
+            - Surgery : Int64
+                binary indicator (0/1) for whether patient had surgery
+            - SurgeryType_mod : category
+                consolidated surgery type
+            - days_diagnosis_to_surgery : float
+                days from diagnosis to surgery
+            - DiseaseGrade : category
+                tumor grade
+            - NStage : category
+                lymph node staging
+            - GroupStage_mod : category
+                consolidated overall staging (0-IV, Unknown)
+            - TStage_mod : category
+                consolidated tumor staging (T0-T4, Ta, Tis, TX, Unknown)
+            - MStage_mod : category
+                consolidated metastasis staging (M0, M1, MX, Unknown)
+            - days_diagnosis_to_adv : float
+                days from diagnosis to advanced disease 
+            - adv_diagnosis_year : category
+                year of advanced diagnosis 
+            - days_diagnosis_to_surgery : float
+                days from diagnosis to surgery 
             
             Original staging and date columns retained if respective drop_* = False
 
         Notes
         -----
-        - Duplicate PatientIDs are logged as warnings if found
-        - Processed DataFrame is stored in self.enhanced_df
+        Duplicate PatientIDs are logged as warnings if found
+        Processed DataFrame is stored in self.enhanced_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -580,8 +593,7 @@ class DataProcessorUrothelial:
                              index_date_column: str,
                              drop_state: bool = True) -> pd.DataFrame:
         """
-        Processes Demographics.csv by standardizing categorical variables, mapping states 
-        to census regions, and calculating age at index date if provided.
+        Processes Demographics.csv by standardizing categorical variables, mapping states to census regions, and calculating age at index date.
 
         Parameters
         ----------
@@ -597,23 +609,35 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - Gender : standardized gender category
-            - Race : standardized race category 
-            - Ethnicity : standardized ethnicity (Hispanic/Latino status)
-            - age : age at index date (if index_date_df provided)
-            - region : US Census Bureau region
-            - State : US state (if drop_state=False)
+            - PatientID : object
+                unique patient identifier
+            - Gender : category
+                gender
+            - Race : category
+                race (White, Black or African America, Asian, Other Race)
+            - Ethnicity : category
+                ethnicity (Hispanic or Latino, Not Hispanic or Latino)
+            - age : Int64
+                age at index date 
+            - region : category
+                US Census Bureau region
+            - State : category
+                US state (if drop_state=False)
             
         Notes
         -----
-        - Duplicate PatientIDs are logged as warnings if found
-        - Processed DataFrame is stored in self.demographics_df
+        Imputation:
+            - if Race='Hispanic or Latino', value is replaced with NaN
+            - if Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
+        Ages calculated as <18 or >120 are removed as implausible
+        Duplicate PatientIDs are logged as warnings if found
+        Processed DataFrame is stored in self.demographics_df
         """
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -653,7 +677,6 @@ class DataProcessorUrothelial:
 
             # If Race == 'Hispanic or Latino' replace with Nan
             df['Race'] = np.where(df['Race'] == 'Hispanic or Latino', np.nan, df['Race'])
-
             df[['Race', 'Ethnicity']] = df[['Race', 'Ethnicity']].astype('category')
 
             # Region processing
@@ -685,8 +708,7 @@ class DataProcessorUrothelial:
                          file_path: str,
                          patient_ids: list = None) -> pd.DataFrame:
         """
-        Processes Practice.csv to consolidate practice types per patient into a single 
-        categorical value indicating academic, community, or both settings.
+        Processes Practice.csv to consolidate practice types per patient into a single categorical value indicating academic, community, or both settings.
 
         Parameters
         ----------
@@ -698,9 +720,10 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier  
-            - PracticeType_mod : practice setting (ACADEMIC, COMMUNITY, or BOTH)
+            - PatientID : object
+                unique patient identifier  
+            - PracticeType_mod : category
+                practice setting (ACADEMIC, COMMUNITY, or BOTH)
        
         Notes
         -----
@@ -788,25 +811,26 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - duration : days from index date to death/censor
-            - event : mortality status (1 = death, 0 = censored)
+            - PatientID : object
+                unique patient identifier
+            - duration : float
+                days from index date to death or censor 
+            - event : Int64
+                mortality status (1 = death, 0 = censored)
 
         Notes
         ------
         Death date imputation:
         - Missing day : Imputed to 15th of the month
         - Missing month and day : Imputed to July 1st
-    
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.mortality_df
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
-    
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
 
@@ -834,7 +858,7 @@ class DataProcessorUrothelial:
             logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df_death.shape} and unique PatientIDs: {(df_death.PatientID.nunique())}")
                 
             # Create event column
-            df_death['event'] = df_death['DateOfDeath'].notna().astype(int)
+            df_death['event'] = df_death['DateOfDeath'].notna().astype('Int64')
 
             # Initialize df_final
             df_final = df_death
@@ -1066,11 +1090,14 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - fgfr_status : positive if ever-positive, negative if only-negative, otherwise unknown
-            - pdl1_status : positive if ever-positive, negative if only-negative, otherwise unknown
-            - pdl1_staining : returns a patient's maximum percent staining for PDL1
+            - PatientID : object
+                unique patient identifier
+            - fgfr_status : category
+                positive if ever-positive, negative if only-negative, otherwise unknown
+            - pdl1_status : cateogory
+                positive if ever-positive, negative if only-negative, otherwise unknown
+            - pdl1_staining : category, ordered 
+                returns a patient's maximum percent staining for PDL1
 
         Notes
         ------
@@ -1079,10 +1106,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.biomarkers_df
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -1244,10 +1272,12 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - ecog_index : ECOG score (0-5) closest to index date, ordered categorical
-            - ecog_newly_gte2 : binary indicator (0/1) for ECOG increased from 0-1 to ≥2 in 6 months before index
+            - PatientID : object
+                unique patient identifier
+            - ecog_index : category, ordered 
+                ECOG score (0-5) closest to index date
+            - ecog_newly_gte2 : Int64
+                binary indicator (0/1) for ECOG increased from 0-1 to ≥2 in 6 months before index
 
         Notes
         ------
@@ -1256,10 +1286,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.ecog_df
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -1392,20 +1423,20 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - weight : float, weight in kg closest to index date within specified window (index_date - weight_days_before) 
-              to (index_date + weight_days_after)
-            - bmi : float, BMI closest to index date within specified window (index_date - weight_days_before) 
-              to (index_date + weight_days_after)
-            - percent_change_weight : float, percentage change in weight over period from (index_date - vital_summary_lookback) 
-              to (index_date + weight_days_after), calculated as ((end_weight - start_weight) / start_weight) * 100
-            - hypotension : binary indicator (0/1) for systolic blood pressure <90 mmHg on ≥2 separate readings between (index_date - vital_summary_lookback) 
-              and (index_date + weight_days_after)
-            - tachycardia : binary indicator (0/1) for heart rate >100 bpm on ≥2 separate readings between (index_date - vital_summary_lookback) 
-              and (index_date + weight_days_after)
-            - fevers : binary indicator (0/1) for temperature >38°C on ≥2 separate readings between (index_date - vital_summary_lookback) 
-              and (index_date + weight_days_after)
+            - PatientID : object 
+                unique patient identifier
+            - weight : float
+                weight in kg closest to index date within specified window (index_date - weight_days_before) to (index_date + weight_days_after)
+            - bmi : float, 
+                BMI closest to index date within specified window (index_date - weight_days_before) to (index_date + weight_days_after)
+            - percent_change_weight : float
+                percentage change in weight over period from (index_date - vital_summary_lookback) to (index_date + weight_days_after), calculated as ((end_weight - start_weight) / start_weight) * 100
+            - hypotension : Int64
+                binary indicator (0/1) for systolic blood pressure <90 mmHg on ≥2 separate readings between (index_date - vital_summary_lookback) and (index_date + weight_days_after)
+            - tachycardia : Int64
+                binary indicator (0/1) for heart rate >100 bpm on ≥2 separate readings between (index_date - vital_summary_lookback) and (index_date + weight_days_after)
+            - fevers : Int64
+                binary indicator (0/1) for temperature >38°C on ≥2 separate readings between (index_date - vital_summary_lookback) and (index_date + weight_days_after)
 
         Notes
         -----
@@ -1420,10 +1451,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.vitals_df attribute
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -1659,8 +1691,8 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
+            - PatientID : object
+                unique patient identifier
 
             Baseline values (closest to index date within days_before/days_after window):
             - hemoglobin : float, g/dL
@@ -1691,10 +1723,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.labs_df attribute
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -1985,17 +2018,24 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - anticoagulated : binary indicator (0/1) for therapeutic anticoagulation (heparin IV with specific units, 
-            enoxaparin >40mg, dalteparin >5000u, fondaparinux >2.5mg, or any DOAC/warfarin) 
-            - opioid : binary indicator (0/1) for oral, transdermal, or sublingual opioids
-            - steroid : binary indicator (0/1) for oral steroids
-            - antibiotic : binary indicator (0/1) for oral/IV antibiotics (excluding antifungals/antivirals)
-            - diabetic : binary indicator (0/1) for antihyperglycemic medication 
-            - antidepressant : binary indicator (0/1) for antidepressant
-            - bone_therapy : binary indicator (0/1) for bone-targeted therapy (e.g., bisphosphonates, denosumab)
-            - immunosuppressed : binary indicator (0/1) for immunosuppressive medications
+            - PatientID : ojbect
+                unique patient identifier
+            - anticoagulated : Int64
+                binary indicator (0/1) for therapeutic anticoagulation (heparin IV with specific units, enoxaparin >40mg, dalteparin >5000u, fondaparinux >2.5mg, or any DOAC/warfarin) 
+            - opioid : Int64
+                binary indicator (0/1) for oral, transdermal, or sublingual opioids
+            - steroid : Int64
+                binary indicator (0/1) for oral steroids
+            - antibiotic : Int64
+                binary indicator (0/1) for oral/IV antibiotics (excluding antifungals/antivirals)
+            - diabetic : Int64
+                binary indicator (0/1) for antihyperglycemic medication 
+            - antidepressant : Int64
+                binary indicator (0/1) for antidepressant
+            - bone_therapy : Int64
+                binary indicator (0/1) for bone-targeted therapy (e.g., bisphosphonates, denosumab)
+            - immunosuppressed : Int64
+                binary indicator (0/1) for immunosuppressive medications
 
         Notes
         -----
@@ -2003,10 +2043,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.medicines_df attribute
         """
-        
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -2235,8 +2276,7 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
+            - PatientID : object unique patient identifier
             - CHF : binary indicator for Congestive Heart Failure
             - Arrhythmia : binary indicator for cardiac arrhythmias
             - Valvular : binary indicator for valvular disease
@@ -2288,10 +2328,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.diagnoses_df attribute
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         
@@ -2477,13 +2518,16 @@ class DataProcessorUrothelial:
         Returns
         -------
         pd.DataFrame
-            Processed DataFrame containing:
-            - PatientID : unique patient identifier
-            - medicare : binary indicator (0/1) for Medicare coverage
-            - medicaid : binary indicator (0/1) for Medicaid coverage
-            - commercial : binary indicator (0/1) for commercial insuarnce coverage
-            - other : binaroy indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, 
-            self pay, and workers compensation)
+            - PatientID : object
+                unique patient identifier
+            - medicare : Int64
+                binary indicator (0/1) for Medicare coverage
+            - medicaid : Int64
+                binary indicator (0/1) for Medicaid coverage
+            - commercial : Int64
+                binary indicator (0/1) for commercial insuarnce coverage
+            - other : Int64
+                binaroy indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, self pay, and workers compensation)
 
         Notes
         -----
@@ -2498,10 +2542,11 @@ class DataProcessorUrothelial:
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.insurance_df attribute
         """
-
         # Input validation
-        if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-            raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
         

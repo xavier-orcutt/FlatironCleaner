@@ -8,135 +8,133 @@ import re
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-def process_insurance(file_path: str,
-                      index_date_df: pd.DataFrame,
-                      index_date_column: str,
-                      days_before: Optional[int] = None,
-                      days_after: int = 0) -> pd.DataFrame:
-    """
-    Processes insurance data to identify insurance coverage relative to a specified index date.
-    Insurance types are grouped into four categories: Medicare, Medicaid, Commercial, and Other. 
+def process_enhanced_adv(file_path: str,
+                         patient_ids: list = None,
+                         drop_stage: bool = True, 
+                         drop_dates: bool = True) -> pd.DataFrame: 
+        """
+        Processes Enhanced_AdvancedNSCLC.csv to standardize categories, consolidate staging information, and calculate time-based metrics between key clinical events.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to Enhanced_AdvancedNSCLC.csv file
+        patient_ids : list, optional
+            List of specific PatientIDs to process. If None, processes all patients
+        drop_stage : bool, default=True
+            If True, drops original GroupStage after consolidating into major groups
+        drop_dates : bool, default=True
+            If True, drops date columns (DiagnosisDate and AdvancedDiagnosisDate) after calculating durations
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame containing:
+            - PatientID : object
+                unique patient identifier
+            - Histology : categorical
+                histology type 
+            - SmokingStatus : categorical
+                smoking history
+            - GroupStage_mod : categorical
+                consolidated overall staging (0-IV, Unknown)
+            - days_diagnosis_to_adv : float
+                days from diagnosis to advanced disease 
+            - adv_diagnosis_year : categorical
+                year of advanced diagnosis 
+            
+            Original staging and date columns retained if respective drop_* = False
+
+        Notes
+        -----
+        - Duplicate PatientIDs are logged as warnings if found
+        - Processed DataFrame is stored in self.enhanced_df
+        """
+        try:
+            df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Enhanced_AdvancedNSCLC.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+
+            # Filter for specific PatientIDs if provided
+            if patient_ids is not None:
+                logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
+                df = df[df['PatientID'].isin(patient_ids)]
+                logging.info(f"Successfully filtered Enhanced_AdvancedNSCLC.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+        
+            # Convert categorical columns
+            categorical_cols = ['Histology', 
+                                'SmokingStatus',
+                                'GroupStage']
+        
+            df[categorical_cols] = df[categorical_cols].astype('category')
+
+            GROUP_STAGE_MAPPING = {
+                # Stage 0/Occult
+                'Stage 0': '0',
+                'Occult': '0',
+                
+                # Stage I
+                'Stage I': 'I',
+                'Stage IA': 'I',
+                'Stage IA1': 'I',
+                'Stage IA2': 'I',
+                'Stage IA3': 'I',
+                'Stage IB': 'I',
+                
+                # Stage II
+                'Stage II': 'II',
+                'Stage IIA': 'II',
+                'Stage IIB': 'II',
+                
+                # Stage III
+                'Stage III': 'III',
+                'Stage IIIA': 'III',
+                'Stage IIIB': 'III',
+                'Stage IIIC': 'III',
+                
+                # Stage IV
+                'Stage IV': 'IV',
+                'Stage IVA': 'IV',
+                'Stage IVB': 'IV',
+                
+                # Unknown/Not reported
+                'Group stage is not reported': 'Unknown'
+            }
+
+            # Recode stage variables using class-level mapping and create new column
+            df['GroupStage_mod'] = df['GroupStage'].map(GROUP_STAGE_MAPPING).astype('category')
+
+            # Drop original stage variables if specified
+            if drop_stage:
+                df = df.drop(columns=['GroupStage'])
+
+            # Convert date columns
+            date_cols = ['DiagnosisDate', 'AdvancedDiagnosisDate']
+            for col in date_cols:
+                df[col] = pd.to_datetime(df[col])
+
+            # Generate new variables 
+            df['days_diagnosis_to_adv'] = (df['AdvancedDiagnosisDate'] - df['DiagnosisDate']).dt.days
+            df['adv_diagnosis_year'] = pd.Categorical(df['AdvancedDiagnosisDate'].dt.year)
     
-    Parameters
-    ----------
-    file_path : str
-        Path to Insurance.csv file
-    index_date_df : pd.DataFrame
-        DataFrame containing PatientID and index dates. Only insurances for PatientIDs present in this DataFrame will be processed
-    index_date_column : str
-        Column name in index_date_df containing the index date
-    days_before : int | None, optional
-        Number of days before the index date to include for window period. Must be >= 0 or None. If None, includes all prior results. Default: None
-    days_after : int, optional
-        Number of days after the index date to include for window period. Must be >= 0. Default: 0
-    
-    Returns
-    -------
-    pd.DataFrame
-        Processed DataFrame containing:
-        - PatientID : unique patient identifier
-        - medicare : binary indicator (0/1) for Medicare coverage
-        - medicaid : binary indicator (0/1) for Medicaid coverage
-        - commercial : binary indicator (0/1) for commercial insuarnce coverage
-        - other : binaroy indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, 
-          self pay, and workers compensation)
+            if drop_dates:
+                df = df.drop(columns = ['AdvancedDiagnosisDate', 'DiagnosisDate'])
 
-    Notes
-    -----
-    Insurance is considered active if:
-    1. StartDate falls before or during the specified time window AND
-    2. Either:
-        - EndDate is missing (considered still active) OR
-        - EndDate falls on or after the start of the time window 
-    EndDate is missing for most patients
-    Missing StartDate values are conservatively imputed with EndDate values
-    Duplicate PatientIDs are logged as warnings but retained in output
-    Results are stored in self.insurance_df attribute
-    """
+            # Check for duplicate PatientIDs
+            if len(df) > df['PatientID'].nunique():
+                logging.error(f"Duplicate PatientIDs found")
+                return None
 
-    # Input validation
-    if not isinstance(index_date_df, pd.DataFrame) or 'PatientID' not in index_date_df.columns:
-        raise ValueError("index_date_df must be a DataFrame containing 'PatientID' column")
-    if not index_date_column or index_date_column not in index_date_df.columns:
-        raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
-    
-    if days_before is not None:
-        if not isinstance(days_before, int) or days_before < 0:
-            raise ValueError("days_before must be a non-negative integer or None")
-    if not isinstance(days_after, int) or days_after < 0:
-        raise ValueError("days_after must be a non-negative integer")
+            logging.info(f"Successfully processed Enhanced_AdvancedNSCLC.csv file with final shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+            return df
 
-    try:
-        df = pd.read_csv(file_path)
-        logging.info(f"Successfully read Insurance.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
-
-        df['StartDate'] = pd.to_datetime(df['StartDate'])
-        df['EndDate'] = pd.to_datetime(df['EndDate'])
-
-        # Impute missing StartDate with EndDate
-        df['StartDate'] = np.where(df['StartDate'].isna(), df['EndDate'], df['StartDate'])
-
-        index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
-
-        # Select PatientIDs that are included in the index_date_df the merge on 'left'
-        df = df[df.PatientID.isin(index_date_df.PatientID)]
-        df = pd.merge(
-             df,
-             index_date_df[['PatientID', index_date_column]],
-             on = 'PatientID',
-             how = 'left'
-             )
-        logging.info(f"Successfully merged Insurance.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
-
-        # Calculate days relative to index date for start 
-        df['days_to_start'] = (df['StartDate'] - df[index_date_column]).dt.days
-
-        # Define window boundaries
-        window_start = -days_before if days_before is not None else float('-inf')
-        window_end = days_after
-
-        # Insurance is active if it:
-        # 1. Starts before or during the window AND
-        # 2. Either has no end date OR ends after window starts
-        df_filtered = df[
-            (df['days_to_start'] <= window_end) &  # Starts before window ends
-            (
-                df['EndDate'].isna() |  # Either has no end date (presumed to be still active)
-                ((df['EndDate'] - df[index_date_column]).dt.days >= window_start)  # Or ends after window starts
-            )
-        ].copy()
-
-        df_filtered['PayerCategory'] = df_filtered['PayerCategory'].replace(INSURANCE_MAPPING)
-
-        final_df = (
-            df_filtered
-            .drop_duplicates(subset = ['PatientID', 'PayerCategory'], keep = 'first')
-            .assign(value=1)
-            .pivot(index = 'PatientID', columns = 'PayerCategory', values = 'value')
-            .fillna(0) 
-            .astype(int)  
-            .rename_axis(columns = None)
-            .reset_index()
-        )
-
-        # Check for duplicate PatientIDs
-        if len(final_df) > final_df['PatientID'].nunique():
-            logging.error(f"Duplicate PatientIDs found")
+        except Exception as e:
+            logging.error(f"Error processing Enhanced_AdvancedNSCLC.csv file: {e}")
             return None
-
-        logging.info(f"Successfully processed Insurance.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
-        return final_df
-
-    except Exception as e:
-        logging.error(f"Error processing Insurance.csv file: {e}")
-        return None
+    
         
 # TESTING 
-index_date_df = pd.read_csv("data/Enhanced_AdvUrothelial.csv")
-a = process_insurance(file_path="data/Insurance.csv",
-                      index_date_df=index_date_df,
-                      index_date_column='AdvancedDiagnosisDate',
-                      days_before = None,
-                      days_after = 0)
+a = process_enhanced_adv(file_path="data_nsclc/Enhanced_AdvancedNSCLC.csv",
+                         drop_stage = False,
+                         drop_dates = False)
 
 embed()
