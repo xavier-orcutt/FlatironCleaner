@@ -8,183 +8,76 @@ import re
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-def process_demographics(file_path: str,
-                         index_date_df: pd.DataFrame,
-                         index_date_column: str,
-                         drop_state: bool = True) -> pd.DataFrame:
+def process_practice(file_path: str,
+                     patient_ids: list = None) -> pd.DataFrame:
     """
-    Processes Demographics.csv by standardizing categorical variables, mapping states to census regions, and calculating age at index date.
+    Processes Practice.csv to consolidate practice types per patient into a single categorical value indicating academic, community, or both settings.
 
     Parameters
     ----------
     file_path : str
-        Path to Demographics.csv file
-    index_dates_df : pd.DataFrame, optional
-        DataFrame containing PatientID and index dates. Only demographics for PatientIDs present in this DataFrame will be processed
-    index_date_column : str, optional
-        Column name in index_date_df containing index date
-    drop_state : bool, default = True
-        If True, drops State column after mapping to regions
+        Path to Practice.csv file
+    patient_ids : list, optional
+        List of specific PatientIDs to process. If None, processes all patients
 
     Returns
     -------
     pd.DataFrame
         - PatientID : object
-            unique patient identifier
-        - Gender : category
-            gender
-        - Race : category
-            race (White, Black or African America, Asian, Other Race)
-        - Ethnicity : category
-            ethnicity (Hispanic or Latino, Not Hispanic or Latino)
-        - age : Int64
-            age at index date 
-        - region : category
-            US Census Bureau region
-        - State : category
-            US state (if drop_state=False)
-        
+            unique patient identifier  
+        - PracticeType_mod : category
+            practice setting (ACADEMIC, COMMUNITY, or BOTH)
+    
     Notes
     -----
-    Imputation for Race and Ethnicity:
-        - If Race='Hispanic or Latino', Race value is replaced with NaN
-        - If Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
-        - Otherwise, missing Race and Ethnicity values remain unchanged
-    Ages calculated as <18 or >120 are removed as implausible
-    Missing States are imputed as unknown during the mapping to regions
+    PracticeID and PrimaryPhysicianID are removed 
     Duplicate PatientIDs are logged as warnings if found
-    Processed DataFrame is stored in self.demographics_df
+    Processed DataFrame is stored in self.practice_df
     """
-    # Input validation
-    if not isinstance(index_date_df, pd.DataFrame):
-        raise ValueError("index_date_df must be a pandas DataFrame")
-    if 'PatientID' not in index_date_df.columns:
-        raise ValueError("index_date_df must contain a 'PatientID' column")
-    if not index_date_column or index_date_column not in index_date_df.columns:
-        raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
-    
     try:
         df = pd.read_csv(file_path)
-        logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+        logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
-        # Initial data type conversions
-        df['BirthYear'] = df['BirthYear'].astype('Int64')
-        df['Gender'] = df['Gender'].astype('category')
-        df['State'] = df['State'].astype('category')
+        # Filter for specific PatientIDs if provided
+        if patient_ids is not None:
+            logging.info(f"Filtering for {len(patient_ids)} specific PatientIDs")
+            df = df[df['PatientID'].isin(patient_ids)]
+            logging.info(f"Successfully filtered Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
-        index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+        df = df[['PatientID', 'PracticeType']]
 
-        # Select PatientIDs that are included in the index_date_df the merge on 'left'
-        df = df[df.PatientID.isin(index_date_df.PatientID)]
-        df = pd.merge(
-            df,
-            index_date_df[['PatientID', index_date_column]], 
-            on = 'PatientID',
-            how = 'left'
-        )
+        # Group by PatientID and get set of unique PracticeTypes
+        grouped = df.groupby('PatientID')['PracticeType'].unique()
+        grouped_df = pd.DataFrame(grouped).reset_index()
 
-        df['age'] = df[index_date_column].dt.year - df['BirthYear']
-
-        # Age validation
-        mask_invalid_age = (df['age'] < 18) | (df['age'] > 120)
-        if mask_invalid_age.any():
-            logging.warning(f"Found {mask_invalid_age.sum()} ages outside valid range (18-120)")
-
-        # Drop the index date column and BirthYear after age calculation
-        df = df.drop(columns = [index_date_column, 'BirthYear'])
-
-        # Race and Ethnicity processing
-        # If Race == 'Hispanic or Latino', fill 'Hispanic or Latino' for Ethnicity
-        df['Ethnicity'] = np.where(df['Race'] == 'Hispanic or Latino', 'Hispanic or Latino', df['Ethnicity'])
-
-        # If Race == 'Hispanic or Latino' replace with Nan
-        df['Race'] = np.where(df['Race'] == 'Hispanic or Latino', np.nan, df['Race'])
-        df[['Race', 'Ethnicity']] = df[['Race', 'Ethnicity']].astype('category')
-
-        STATE_REGIONS_MAPPING = {
-            'ME': 'northeast', 
-            'NH': 'northeast',
-            'VT': 'northeast', 
-            'MA': 'northeast',
-            'CT': 'northeast',
-            'RI': 'northeast',  
-            'NY': 'northeast', 
-            'NJ': 'northeast', 
-            'PA': 'northeast', 
-            'IL': 'midwest', 
-            'IN': 'midwest', 
-            'MI': 'midwest', 
-            'OH': 'midwest', 
-            'WI': 'midwest',
-            'IA': 'midwest',
-            'KS': 'midwest',
-            'MN': 'midwest',
-            'MO': 'midwest', 
-            'NE': 'midwest',
-            'ND': 'midwest',
-            'SD': 'midwest',
-            'DE': 'south',
-            'FL': 'south',
-            'GA': 'south',
-            'MD': 'south',
-            'NC': 'south', 
-            'SC': 'south',
-            'VA': 'south',
-            'DC': 'south',
-            'WV': 'south',
-            'AL': 'south',
-            'KY': 'south',
-            'MS': 'south',
-            'TN': 'south',
-            'AR': 'south',
-            'LA': 'south',
-            'OK': 'south',
-            'TX': 'south',
-            'AZ': 'west',
-            'CO': 'west',
-            'ID': 'west',
-            'MT': 'west',
-            'NV': 'west',
-            'NM': 'west',
-            'UT': 'west',
-            'WY': 'west',
-            'AK': 'west',
-            'CA': 'west',
-            'HI': 'west',
-            'OR': 'west',
-            'WA': 'west',
-            'PR': 'unknown'
-        }
+        # Function to determine the practice type
+        def get_practice_type(practice_types):
+            if len(practice_types) > 1:
+                return 'BOTH'
+            return practice_types[0]
         
-        # Region processing
-        # Group states into Census-Bureau regions  
-        df['region'] = (df['State']
-                        .map(STATE_REGIONS_MAPPING)
-                        .fillna('unknown')
-                        .astype('category'))
+        # Apply the function to the column containing sets
+        grouped_df['PracticeType_mod'] = grouped_df['PracticeType'].apply(get_practice_type).astype('category')
 
-        # Drop State varibale if specified
-        if drop_state:               
-            df = df.drop(columns = ['State'])
+        final_df = grouped_df[['PatientID', 'PracticeType_mod']]
 
         # Check for duplicate PatientIDs
-        if len(df) > df['PatientID'].nunique():
+        if len(final_df) > final_df['PatientID'].nunique():
             logging.error(f"Duplicate PatientIDs found")
             return None
         
-        logging.info(f"Successfully processed Demographics.csv file with final shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
-        return df
+        logging.info(f"Successfully processed Practice.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+        return final_df
 
     except Exception as e:
-        logging.error(f"Error processing Demographics.csv file: {e}")
+        logging.error(f"Error processing Practice.csv file: {e}")
         return None
     
         
 # TESTING
-df = pd.read_csv('data_nsclc/Enhanced_AdvancedNSCLC.csv') 
-a = process_demographics(file_path="data_nsclc/Demographics.csv",
-                         index_date_df=df,
-                         index_date_column='AdvancedDiagnosisDate', 
-                         drop_state = False)
+df = pd.read_csv('data_nsclc/Enhanced_AdvancedNSCLC.csv')
+ids = df.sample(n=1000).PatientID.to_list() 
+a = process_practice(file_path="data_nsclc/Practice.csv",
+                     patient_ids = ids)
 
 embed()

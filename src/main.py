@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     enhanced_file_path = "data_nsclc/Enhanced_AdvancedNSCLC.csv"
     demographics_file_path = "data_nsclc/Demographics.csv"
-    #practice_file_path = "data_nsclc/Practice.csv"
+    practice_file_path = "data_nsclc/Practice.csv"
     #mortality_file_path = "data_nsclc/Enhanced_Mortality_V2.csv"
     #biomarkers_file_path = "data_nsclc/Enhanced_AdvUrothelialBiomarkers.csv"
     #ecog_file_path = "data_nsclc/ECOG.csv"
@@ -27,7 +27,7 @@ if __name__ == "__main__":
                                                      index_date_df=df, 
                                                      index_date_column='AdvancedDiagnosisDate')
     
-    #practice_df = processor.process_practice(practice_file_path)
+    practice_df = processor.process_practice(practice_file_path)
 
     #mortality_df = processor.process_mortality(mortality_file_path,
     #                                           index_date_df=df,
@@ -84,7 +84,9 @@ if __name__ == "__main__":
 
 
     # Merge datasets
-    merged_data = merge_dataframes(enhanced_df, demographics_df)
+    merged_data = merge_dataframes(enhanced_df, 
+                                   demographics_df,
+                                   practice_df)
     
     if merged_data is not None:
         print(merged_data.head())

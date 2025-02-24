@@ -728,8 +728,9 @@ class DataProcessorUrothelial:
        
         Notes
         -----
-        - Duplicate PatientIDs are logged as warnings if found
-        - Processed DataFrame is stored in self.practice_df
+        PracticeID and PrimaryPhysicianID are removed
+        Duplicate PatientIDs are logged as warnings if found
+        Processed DataFrame is stored in self.practice_df
         """
         try:
             df = pd.read_csv(file_path)
@@ -745,7 +746,7 @@ class DataProcessorUrothelial:
 
             # Group by PatientID and get set of unique PracticeTypes
             grouped = df.groupby('PatientID')['PracticeType'].unique()
-            new_df = pd.DataFrame(grouped).reset_index()
+            grouped_df = pd.DataFrame(grouped).reset_index()
 
             # Function to determine the modified practice type
             def get_practice_type(practice_types):
@@ -754,21 +755,21 @@ class DataProcessorUrothelial:
                 return practice_types[0]
             
             # Apply the function to the column containing sets
-            new_df['PracticeType_mod'] = new_df['PracticeType'].apply(get_practice_type).astype('category')
+            grouped_df['PracticeType_mod'] = grouped_df['PracticeType'].apply(get_practice_type).astype('category')
 
-            new_df = new_df[['PatientID', 'PracticeType_mod']]
+            final_df = grouped_df[['PatientID', 'PracticeType_mod']]
 
             # Check for duplicate PatientIDs
-            if len(new_df) > new_df['PatientID'].nunique():
+            if len(final_df) > final_df['PatientID'].nunique():
                 logging.error(f"Duplicate PatientIDs found")
                 return None
             
-            logging.info(f"Successfully processed Practice.csv file with final shape: {new_df.shape} and unique PatientIDs: {(new_df['PatientID'].nunique())}")
-            self.practice_df = new_df
-            return new_df
+            logging.info(f"Successfully processed Practice.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+            self.practice_df = final_df
+            return final_df
 
         except Exception as e:
-            logging.error(f"Error processing practice file: {e}")
+            logging.error(f"Error processing Practice.csv file: {e}")
             return None
         
     def process_mortality(self,
