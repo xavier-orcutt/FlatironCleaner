@@ -7,7 +7,7 @@ if __name__ == "__main__":
     processor = DataProcessorNSCLC()
 
     enhanced_file_path = "data_nsclc/Enhanced_AdvancedNSCLC.csv"
-    #demographics_file_path = "data_nsclc/Demographics.csv"
+    demographics_file_path = "data_nsclc/Demographics.csv"
     #practice_file_path = "data_nsclc/Practice.csv"
     #mortality_file_path = "data_nsclc/Enhanced_Mortality_V2.csv"
     #biomarkers_file_path = "data_nsclc/Enhanced_AdvUrothelialBiomarkers.csv"
@@ -18,15 +18,14 @@ if __name__ == "__main__":
     #diagnosis_file_path = "data_nsclc/Diagnosis.csv"
     #insurance_file_path = "data_nsclc/Insurance.csv"
 
-    #df = pd.read_csv(enhanced_file_path)
+    df = pd.read_csv(enhanced_file_path)
     
     # Process datasets
     enhanced_df = processor.process_enhanced_adv(enhanced_file_path)
-    embed()
 
-    #demographics_df = processor.process_demographics(demographics_file_path, 
-    #                                                 index_date_df=df, 
-    #                                                 index_date_column='AdvancedDiagnosisDate')
+    demographics_df = processor.process_demographics(demographics_file_path, 
+                                                     index_date_df=df, 
+                                                     index_date_column='AdvancedDiagnosisDate')
     
     #practice_df = processor.process_practice(practice_file_path)
 
@@ -80,14 +79,14 @@ if __name__ == "__main__":
     #                                           index_date_df = df,
     #                                           index_date_column='AdvancedDiagnosisDate',
     #                                           days_before=None,
-     #                                          days_after=0)
+    #                                          days_after=0)
     
 
 
     # Merge datasets
-    #merged_data = merge_dataframes(enhanced_df, demographics_df, practice_df, mortality_df, biomarkers_df, ecog_df, vitals_df, medication_df, diagnosis_df, insurance_df)
+    merged_data = merge_dataframes(enhanced_df, demographics_df)
     
-    #if merged_data is not None:
-    #    print(merged_data.head())
-    #    print(merged_data.dtypes)
-    #    embed()
+    if merged_data is not None:
+        print(merged_data.head())
+        print(merged_data.dtypes)
+        embed()

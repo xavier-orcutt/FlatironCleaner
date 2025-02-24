@@ -62,11 +62,10 @@ class DataProcessorUrothelial:
         'Ureterectomy': 'upper', 
         'Urethrectomy': 'other',
         'Other': 'other',
-        'Unknown/not documented': 'unknown', 
-        np.nan: 'unknown'
+        'Unknown/not documented': 'unknown'
     }
 
-    STATE_REGIONS = {
+    STATE_REGIONS_MAPPING = {
         'ME': 'northeast', 
         'NH': 'northeast',
         'VT': 'northeast', 
@@ -626,10 +625,12 @@ class DataProcessorUrothelial:
             
         Notes
         -----
-        Imputation:
-            - if Race='Hispanic or Latino', value is replaced with NaN
-            - if Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
-        Ages calculated as <18 or >120 are removed as implausible
+        Imputation for Race and Ethnicity:
+            - If Race='Hispanic or Latino', Race value is replaced with NaN
+            - If Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
+            - Otherwise, missing Race and Ethnicity values remain unchanged
+        Ages calculated as <18 or >120 are logged as warning if found, but not removed
+        Missing States are imputed as unknown during the mapping to regions
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.demographics_df
         """
@@ -682,7 +683,7 @@ class DataProcessorUrothelial:
             # Region processing
             # Group states into Census-Bureau regions  
             df['region'] = (df['State']
-                            .map(self.STATE_REGIONS)
+                            .map(self.STATE_REGIONS_MAPPING)
                             .fillna('unknown')
                             .astype('category'))
 
@@ -700,7 +701,7 @@ class DataProcessorUrothelial:
             return df
 
         except Exception as e:
-            logging.error(f"Error processing demographics file: {e}")
+            logging.error(f"Error processing Demographics.csv file: {e}")
             return None
         
 
