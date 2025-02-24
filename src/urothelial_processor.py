@@ -1068,13 +1068,6 @@ class DataProcessorUrothelial:
                            days_after: int = 0) -> pd.DataFrame:
         """
         Processes Enhanced_AdvUrothelialBiomarkers.csv by determining FGFR and PDL1 status for each patient within a specified time window relative to an index date
-        For each biomarker:
-        - FGFR status is classified as:
-            - 'positive' if any test result is positive (ever-positive)
-            - 'negative' if any test is negative without positives (only-negative) 
-            - 'unknown' if all results are indeterminate
-        - PDL1 status follows the same classification logic
-        - PDL1 staining percentage is also captured
 
         Parameters
         ----------
@@ -1094,17 +1087,23 @@ class DataProcessorUrothelial:
         pd.DataFrame
             - PatientID : object
                 unique patient identifier
-            - fgfr_status : category
+            - FGFR_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
-            - pdl1_status : cateogory
+            - PDL1_status : cateogory
                 positive if ever-positive, negative if only-negative, otherwise unknown
-            - pdl1_staining : category, ordered 
+            - PDL1_percent_staining : category, ordered 
                 returns a patient's maximum percent staining for PDL1
 
         Notes
         ------
         Missing ResultDate is imputed with SpecimenReceivedDate.
         All PatientIDs from index_date_df are included in the output and values will be NaN for patients without any biomarker tests
+        For each biomarker, status is classified as:
+            - 'positive' if any test result is positive (ever-positive)
+            - 'negative' if any test is negative without positives (only-negative) 
+            - 'unknown' if all results are indeterminate
+        - PDL1 status follows the same classification logic
+        - PDL1 staining percentage is also captured
         Duplicate PatientIDs are logged as warnings if found
         Processed DataFrame is stored in self.biomarkers_df
         """
@@ -1159,7 +1158,7 @@ class DataProcessorUrothelial:
                 ].copy()
 
             # Process FGFR status
-            fgfr_df = (
+            FGFR_df = (
                 df_filtered
                 .query('BiomarkerName == "FGFR"')
                 .groupby('PatientID')['BiomarkerStatus']
@@ -1167,11 +1166,11 @@ class DataProcessorUrothelial:
                     else ('negative' if any('Negative' in val for val in x)
                         else 'unknown'))
                 .reset_index()
-                .rename(columns={'BiomarkerStatus': 'fgfr_status'})
-                )
+                .rename(columns={'BiomarkerStatus': 'FGFR_status'})
+            )
             
             # Process PDL1 status
-            pdl1_df = (
+            PDL1_df = (
                 df_filtered
                 .query('BiomarkerName == "PDL1"')
                 .groupby('PatientID')['BiomarkerStatus']
@@ -1179,11 +1178,11 @@ class DataProcessorUrothelial:
                     else ('negative' if any('PD-L1 negative/not detected' in val for val in x)
                         else 'unknown'))
                 .reset_index()
-                .rename(columns={'BiomarkerStatus': 'pdl1_status'})
-                )
+                .rename(columns={'BiomarkerStatus': 'PDL1_status'})
+            )
 
             # Process PDL1 staining 
-            pdl1_staining_df = (
+            PDL1_staining_df = (
                 df_filtered
                 .query('BiomarkerName == "PDL1"')
                 .query('BiomarkerStatus == "PD-L1 positive"')
@@ -1191,23 +1190,23 @@ class DataProcessorUrothelial:
                 .apply(lambda x: x.map(self.PDL1_PERCENT_STAINING_MAPPING))
                 .groupby('PatientID')
                 .agg('max')
-                .to_frame(name = 'pdl1_ordinal_value')
+                .to_frame(name = 'PDL1_ordinal_value')
                 .reset_index()
-                )
+            )
             
             # Create reverse mapping to convert back to percentage strings
             reverse_pdl1_dict = {v: k for k, v in self.PDL1_PERCENT_STAINING_MAPPING.items()}
-            pdl1_staining_df['pdl1_percent_staining'] = pdl1_staining_df['pdl1_ordinal_value'].map(reverse_pdl1_dict)
-            pdl1_staining_df = pdl1_staining_df.drop(columns = ['pdl1_ordinal_value'])
+            PDL1_staining_df['PDL1_percent_staining'] = PDL1_staining_df['PDL1_ordinal_value'].map(reverse_pdl1_dict)
+            PDL1_staining_df = PDL1_staining_df.drop(columns = ['PDL1_ordinal_value'])
 
             # Merge dataframes -- start with index_date_df to ensure all PatientIDs are included
             final_df = index_date_df[['PatientID']].copy()
-            final_df = pd.merge(final_df, pdl1_df, on = 'PatientID', how = 'left')
-            final_df = pd.merge(final_df, pdl1_staining_df, on = 'PatientID', how = 'left')
-            final_df = pd.merge(final_df, fgfr_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, PDL1_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, PDL1_staining_df, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, FGFR_df, on = 'PatientID', how = 'left')
 
-            final_df['pdl1_status'] = final_df['pdl1_status'].astype('category')
-            final_df['fgfr_status'] = final_df['fgfr_status'].astype('category')
+            final_df['PDL1_status'] = final_df['PDL1_status'].astype('category')
+            final_df['FGFR_status'] = final_df['FGFR_status'].astype('category')
 
             staining_dtype = pd.CategoricalDtype(
                 categories = ['0%', '< 1%', '1%', '2% - 4%', '5% - 9%', '10% - 19%',
@@ -1216,7 +1215,7 @@ class DataProcessorUrothelial:
                               ordered = True
                               )
             
-            final_df['pdl1_percent_staining'] = final_df['pdl1_percent_staining'].astype(staining_dtype)
+            final_df['PDL1_percent_staining'] = final_df['PDL1_percent_staining'].astype(staining_dtype)
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():

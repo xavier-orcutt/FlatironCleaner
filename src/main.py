@@ -10,7 +10,7 @@ if __name__ == "__main__":
     demographics_file_path = "data_nsclc/Demographics.csv"
     practice_file_path = "data_nsclc/Practice.csv"
     #mortality_file_path = "data_nsclc/Enhanced_Mortality_V2.csv"
-    #biomarkers_file_path = "data_nsclc/Enhanced_AdvUrothelialBiomarkers.csv"
+    biomarkers_file_path = "data_nsclc/Enhanced_AdvNSCLCBiomarkers.csv"
     #ecog_file_path = "data_nsclc/ECOG.csv"
     #vitals_file_path = "data_nsclc/Vitals.csv"
     #lab_file_path =  "data_nsclc/Lab.csv"
@@ -36,11 +36,11 @@ if __name__ == "__main__":
     #                                           oral_path="data/Enhanced_AdvUrothelial_Orals.csv",
     #                                           drop_dates = False)
     
-    #biomarkers_df = processor.process_biomarkers(biomarkers_file_path,
-    #                                             index_date_df=df,
-    #                                             index_date_column='AdvancedDiagnosisDate',
-    #                                             days_before=90,
-    #                                             days_after=14)
+    biomarkers_df = processor.process_biomarkers(biomarkers_file_path,
+                                                 index_date_df=df,
+                                                 index_date_column='AdvancedDiagnosisDate',
+                                                 days_before=None,
+                                                 days_after=14)
 
     #ecog_df =  processor.process_ecog(ecog_file_path,
     #                                  index_date_df=df,
@@ -86,7 +86,8 @@ if __name__ == "__main__":
     # Merge datasets
     merged_data = merge_dataframes(enhanced_df, 
                                    demographics_df,
-                                   practice_df)
+                                   practice_df,
+                                   biomarkers_df)
     
     if merged_data is not None:
         print(merged_data.head())

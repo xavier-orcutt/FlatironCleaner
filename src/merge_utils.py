@@ -20,6 +20,11 @@ def merge_dataframes(*dataframes: pd.DataFrame,
     # Check if any dataframes are provided
     if not dataframes:
         logging.error("No dataframes provided for merging")
+
+    # Check for None values in the provided dataframes
+    if any(df is None for df in dataframes):
+        logging.error("One or more input dataframes are None. Cannot proceed with merging.")
+        return None
         
     try:
         # Calculate anticipated merges and final column count
