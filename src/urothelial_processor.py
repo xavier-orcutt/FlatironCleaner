@@ -2546,15 +2546,16 @@ class DataProcessorUrothelial:
             logging.error(f"Error processing Diagnosis.csv file: {e}")
             return None
         
-    def process_insurance(self, 
+    def process_insurance(self,
                           file_path: str,
                           index_date_df: pd.DataFrame,
                           index_date_column: str,
                           days_before: Optional[int] = None,
-                          days_after: int = 0) -> pd.DataFrame:
+                          days_after: int = 0,
+                          missing_date_strategy: str = 'conservative') -> pd.DataFrame:
         """
         Processes insurance data to identify insurance coverage relative to a specified index date.
-        Insurance types are grouped into four categories: Medicare, Medicaid, Commercial, and Other. 
+        Insurance types are grouped into four categories: Medicare, Medicaid, Commercial, and Other Insurance. 
         
         Parameters
         ----------
@@ -2568,6 +2569,10 @@ class DataProcessorUrothelial:
             Number of days before the index date to include for window period. Must be >= 0 or None. If None, includes all prior results. Default: None
         days_after : int, optional
             Number of days after the index date to include for window period. Must be >= 0. Default: 0
+        missing_date_strategy : str
+            Strategy for handling missing StartDate:
+            - 'conservative': Excludes records with both StartDate and EndDate missing and imputes EndDate for missing StartDate (may underestimate coverage)
+            - 'liberal': Assumes records with missing StartDates are always active and imputes default date of 2000-01-01 (may overestimate coverage)
         
         Returns
         -------
@@ -2580,7 +2585,7 @@ class DataProcessorUrothelial:
                 binary indicator (0/1) for Medicaid coverage
             - commercial : Int64
                 binary indicator (0/1) for commercial insuarnce coverage
-            - other : Int64
+            - other_insurance : Int64
                 binaroy indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, self pay, and workers compensation)
 
         Notes
@@ -2590,8 +2595,21 @@ class DataProcessorUrothelial:
         2. Either:
             - EndDate is missing (considered still active) OR
             - EndDate falls on or after the start of the time window 
+
+        Insurance categorization logic:
+        1. Medicaid takes priority over Medicare for dual-eligible patients
+        2. Records are classified as Medicare if:
+        - PayerCategory is 'Medicare' OR
+        - PayerCategory is not 'Medicaid' AND IsMedicareAdv is 'Yes' AND IsManagedMedicaid is not 'Yes' AND IsMedicareMedicaid is not 'Yes' OR
+        - PayerCategory is not 'Medicaid' AND IsMedicareSupp is 'Yes' AND IsManagedMedicaid is not 'Yes' AND IsMedicareMedicaid is not 'Yes'
+        3. Records are classified as Medicaid if:
+        - PayerCategory is 'Medicaid' OR
+        - IsManagedMedicaid is 'Yes' OR
+        - IsMedicareMedicaid is 'Yes'
+        4. Records are classified as Commercial if PayerCategory is 'Commercial Health Plan' after above reclassification
+        5. All other records are classified as Other Insurance
+
         EndDate is missing for most patients
-        Missing StartDate values are conservatively imputed with EndDate values
         All PatientIDs from index_date_df are included in the output
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.insurance_df attribute
@@ -2609,6 +2627,12 @@ class DataProcessorUrothelial:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        if not isinstance(missing_date_strategy, str):
+            raise ValueError("missing_date_strategy must be a string")    
+        valid_strategies = ['conservative', 'liberal']
+        if missing_date_strategy not in valid_strategies:
+            raise ValueError("missing_date_strategy must be 'conservative' or 'liberal'")
 
         try:
             df = pd.read_csv(file_path)
@@ -2617,8 +2641,19 @@ class DataProcessorUrothelial:
             df['StartDate'] = pd.to_datetime(df['StartDate'])
             df['EndDate'] = pd.to_datetime(df['EndDate'])
 
-            # Impute missing StartDate with EndDate
-            df['StartDate'] = np.where(df['StartDate'].isna(), df['EndDate'], df['StartDate'])
+            both_dates_missing = df['StartDate'].isna() & df['EndDate'].isna()
+            start_date_missing = df['StartDate'].isna()
+
+            if missing_date_strategy == 'conservative':
+                # Exclude records with both dates missing, and impute EndDate for missing StartDate
+                df = df[~both_dates_missing]
+                df['StartDate'] = np.where(df['StartDate'].isna(), df['EndDate'], df['StartDate'])
+            elif missing_date_strategy == 'liberal':
+                # Assume always active by setting StartDate to default date of 2000-01-01
+                df.loc[start_date_missing, 'StartDate'] = pd.Timestamp('2000-01-01')
+
+            # Filter for StartDate after 1900-01-01
+            df = df[df['StartDate'] > pd.Timestamp('1900-01-01')]
 
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
 
@@ -2629,11 +2664,32 @@ class DataProcessorUrothelial:
                 index_date_df[['PatientID', index_date_column]],
                 on = 'PatientID',
                 how = 'left'
-                )
+            )
             logging.info(f"Successfully merged Insurance.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # Calculate days relative to index date for start 
             df['days_to_start'] = (df['StartDate'] - df[index_date_column]).dt.days
+
+            # Reclassify Commerical Health Plans that should be Medicare or Medicaid
+            # Identify Medicare Advantage plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] != 'Medicaid') & (df['IsMedicareAdv'] == 'Yes') & (df['IsManagedMedicaid'] != 'Yes') & (df['IsMedicareMedicaid'] != 'Yes'),
+                                           'Medicare',
+                                           df['PayerCategory'])
+
+            # Identify Medicare Supplement plans incorrectly labeled as Commercial
+            df['PayerCategory'] = np.where((df['PayerCategory'] != 'Medicaid') & (df['IsMedicareSupp'] == 'Yes') & (df['IsManagedMedicaid'] != 'Yes') & (df['IsMedicareMedicaid'] != 'Yes'),
+                                           'Medicare',
+                                           df['PayerCategory'])
+            
+            # Identify Managed Medicaid plans incorrectly labeled as Commercial
+            df['PayerCategory'] = np.where((df['IsManagedMedicaid'] == 'Yes'),
+                                           'Medicaid',
+                                           df['PayerCategory'])
+            
+            # Identify Medicare-Medicaid dual eligible plans incorrectly labeled as Commercial
+            df['PayerCategory'] = np.where((df['IsMedicareMedicaid'] == 'Yes'),
+                                           'Medicaid',
+                                           df['PayerCategory'])
 
             # Define window boundaries
             window_start = -days_before if days_before is not None else float('-inf')
@@ -2658,7 +2714,7 @@ class DataProcessorUrothelial:
                 .assign(value=1)
                 .pivot(index = 'PatientID', columns = 'PayerCategory', values = 'value')
                 .fillna(0) 
-                .astype(int)  
+                .astype('Int64')  
                 .rename_axis(columns = None)
                 .reset_index()
             )
@@ -2682,7 +2738,3 @@ class DataProcessorUrothelial:
         except Exception as e:
             logging.error(f"Error processing Insurance.csv file: {e}")
             return None
-
-            
-
-        

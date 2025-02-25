@@ -16,7 +16,7 @@ if __name__ == "__main__":
     #lab_file_path =  "data_nsclc/Lab.csv"
     #medication_file_path =  "data_nsclc/MedicationAdministration.csv"
     #diagnosis_file_path = "data_nsclc/Diagnosis.csv"
-    #insurance_file_path = "data_nsclc/Insurance.csv"
+    insurance_file_path = "data_nsclc/Insurance.csv"
 
     df = pd.read_csv(enhanced_file_path)
     
@@ -74,13 +74,14 @@ if __name__ == "__main__":
     #                                           index_date_df = df,
     #                                           index_date_column='AdvancedDiagnosisDate',
     #                                           days_before=None,
-     #                                          days_after=0)
+    #                                           days_after=0)
     
-    #insurance_df = processor.process_insurance(insurance_file_path,
-    #                                           index_date_df = df,
-    #                                           index_date_column='AdvancedDiagnosisDate',
-    #                                           days_before=None,
-    #                                          days_after=0)
+    insurance_df = processor.process_insurance(insurance_file_path,
+                                               index_date_df = df,
+                                               index_date_column='AdvancedDiagnosisDate',
+                                               days_before=None,
+                                               days_after=0,
+                                               missing_date_strategy = 'conservative')
     
 
 
@@ -90,7 +91,8 @@ if __name__ == "__main__":
                                    practice_df,
                                    biomarkers_df,
                                    ecog_df,
-                                   vitals_df)
+                                   vitals_df,
+                                   insurance_df)
     
     if merged_data is not None:
         print(merged_data.head())
