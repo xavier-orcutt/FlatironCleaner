@@ -12,7 +12,7 @@ if __name__ == "__main__":
     #mortality_file_path = "data_nsclc/Enhanced_Mortality_V2.csv"
     biomarkers_file_path = "data_nsclc/Enhanced_AdvNSCLCBiomarkers.csv"
     ecog_file_path = "data_nsclc/ECOG.csv"
-    #vitals_file_path = "data_nsclc/Vitals.csv"
+    vitals_file_path = "data_nsclc/Vitals.csv"
     #lab_file_path =  "data_nsclc/Lab.csv"
     #medication_file_path =  "data_nsclc/MedicationAdministration.csv"
     #diagnosis_file_path = "data_nsclc/Diagnosis.csv"
@@ -48,12 +48,13 @@ if __name__ == "__main__":
                                       days_before=90,
                                       days_after=0)
     
-    #vitals_df = processor.process_vitals(vitals_file_path,
-    #                                     index_date_df=df,
-    #                                     index_date_column='AdvancedDiagnosisDate',
-    #                                     weight_days_before = 90,
-    #                                     weight_days_after = 0,
-    #                                     vital_summary_lookback = 180)
+    vitals_df = processor.process_vitals(vitals_file_path,
+                                         index_date_df=df,
+                                         index_date_column='AdvancedDiagnosisDate',
+                                         weight_days_before = 90,
+                                         days_after = 0,
+                                         vital_summary_lookback = 180,
+                                         abnormal_reading_threshold = 1)
     
     #lab_df = processor.process_labs(lab_file_path,
     #                                index_date_df=df,
@@ -88,7 +89,8 @@ if __name__ == "__main__":
                                    demographics_df,
                                    practice_df,
                                    biomarkers_df,
-                                   ecog_df)
+                                   ecog_df,
+                                   vitals_df)
     
     if merged_data is not None:
         print(merged_data.head())
