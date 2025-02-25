@@ -1265,7 +1265,7 @@ class DataProcessorUrothelial:
             Number of days before the index date to include. Must be >= 0. Default: 90
         days_after : int, optional
             Number of days after the index date to include. Must be >= 0. Default: 0
-        days_before_futher : int, optional
+        days_before_further : int, optional
             Number of days before index date to look for ECOG progression (0-1 to ≥2). Must be >= 0. Consdier
             selecting a larger integer than days_before to capture meaningful clinical deterioration over time.
             Default: 180
@@ -1333,7 +1333,7 @@ class DataProcessorUrothelial:
                 .assign(abs_days_to_index = lambda x: abs(x['index_to_ecog']))
                 .sort_values(
                     by=['PatientID', 'abs_days_to_index', 'EcogValue'], 
-                    ascending=[True, True, False])
+                    ascending=[True, True, False]) # Last False means highest ECOG is selected in ties
                 .groupby('PatientID')
                 .first()
                 .reset_index()
@@ -1344,7 +1344,7 @@ class DataProcessorUrothelial:
                     )
                 )
             
-            # # Process 2: Check for ECOG progression in wider window
+            # Filter dataframe using farther back window
             df_progression_window = df[
                     (df['index_to_ecog'] <= days_after) & 
                     (df['index_to_ecog'] >= -days_before_further)].copy()

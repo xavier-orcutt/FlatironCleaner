@@ -11,7 +11,7 @@ if __name__ == "__main__":
     practice_file_path = "data_nsclc/Practice.csv"
     #mortality_file_path = "data_nsclc/Enhanced_Mortality_V2.csv"
     biomarkers_file_path = "data_nsclc/Enhanced_AdvNSCLCBiomarkers.csv"
-    #ecog_file_path = "data_nsclc/ECOG.csv"
+    ecog_file_path = "data_nsclc/ECOG.csv"
     #vitals_file_path = "data_nsclc/Vitals.csv"
     #lab_file_path =  "data_nsclc/Lab.csv"
     #medication_file_path =  "data_nsclc/MedicationAdministration.csv"
@@ -42,11 +42,11 @@ if __name__ == "__main__":
                                                  days_before=None,
                                                  days_after=14)
 
-    #ecog_df =  processor.process_ecog(ecog_file_path,
-    #                                  index_date_df=df,
-    #                                  index_date_column='AdvancedDiagnosisDate',
-    #                                  days_before=90,
-    #                                  days_after=0)
+    ecog_df =  processor.process_ecog(ecog_file_path,
+                                      index_date_df=df,
+                                      index_date_column='AdvancedDiagnosisDate',
+                                      days_before=90,
+                                      days_after=0)
     
     #vitals_df = processor.process_vitals(vitals_file_path,
     #                                     index_date_df=df,
@@ -87,7 +87,8 @@ if __name__ == "__main__":
     merged_data = merge_dataframes(enhanced_df, 
                                    demographics_df,
                                    practice_df,
-                                   biomarkers_df)
+                                   biomarkers_df,
+                                   ecog_df)
     
     if merged_data is not None:
         print(merged_data.head())
