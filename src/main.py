@@ -13,7 +13,7 @@ if __name__ == "__main__":
     biomarkers_file_path = "data_nsclc/Enhanced_AdvNSCLCBiomarkers.csv"
     ecog_file_path = "data_nsclc/ECOG.csv"
     vitals_file_path = "data_nsclc/Vitals.csv"
-    #lab_file_path =  "data_nsclc/Lab.csv"
+    lab_file_path =  "data_nsclc/Lab.csv"
     #medication_file_path =  "data_nsclc/MedicationAdministration.csv"
     #diagnosis_file_path = "data_nsclc/Diagnosis.csv"
     insurance_file_path = "data_nsclc/Insurance.csv"
@@ -56,12 +56,12 @@ if __name__ == "__main__":
                                          vital_summary_lookback = 180,
                                          abnormal_reading_threshold = 1)
     
-    #lab_df = processor.process_labs(lab_file_path,
-    #                                index_date_df=df,
-    #                                index_date_column='AdvancedDiagnosisDate',
-    #                                days_before = 90,
-    #                                days_after = 0,
-    #                                summary_lookback = 180)
+    labs_df = processor.process_labs(lab_file_path,
+                                     index_date_df=df,
+                                     index_date_column='AdvancedDiagnosisDate',
+                                     days_before = 90,
+                                     days_after = 0,
+                                     summary_lookback = 180)
     
     #medication_df = processor.process_medications(medication_file_path,
     #                                              index_date_df = df,
@@ -92,7 +92,8 @@ if __name__ == "__main__":
                                    biomarkers_df,
                                    ecog_df,
                                    vitals_df,
-                                   insurance_df)
+                                   insurance_df,
+                                   labs_df)
     
     if merged_data is not None:
         print(merged_data.head())

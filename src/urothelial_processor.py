@@ -1710,7 +1710,7 @@ class DataProcessorUrothelial:
             logging.error(f"Error processing Vitals.csv file: {e}")
             return None
         
-    def process_labs(self, 
+    def process_labs(self,
                      file_path: str,
                      index_date_df: pd.DataFrame,
                      index_date_column: str, 
@@ -1720,7 +1720,8 @@ class DataProcessorUrothelial:
                      summary_lookback: int = 180) -> pd.DataFrame:
         """
         Processes Lab.csv to determine patient lab values within a specified time window relative to an index date. Returns CBC and CMP values 
-        nearest to index date, along with summary statistics (max, min, standard deviation, and slope) calculated over the summary period.
+        nearest to index date, along with summary statistics (max, min, standard deviation, and slope) calculated over the summary period. 
+        Additional lab tests can be included by providing corresponding LOINC code mappings.
 
         Parameters
         ----------
@@ -1754,8 +1755,9 @@ class DataProcessorUrothelial:
             - platelet : float, 10^9/L
             - creatinine : float, mg/dL
             - bun : float, mg/dL
+            - sodium : float, mmol/L
             - chloride : float, mmol/L
-            - bicarb : float, mmol/L
+            - bicarbonate : float, mmol/L
             - potassium : float, mmol/L
             - calcium : float, mg/dL
             - alp : float, U/L
@@ -1773,6 +1775,18 @@ class DataProcessorUrothelial:
 
         Notes
         -----
+        Missing ResultDate is imputed with TestDate
+        
+        Imputation strategy for lab values:
+        - For each lab, missing TestResultCleaned values are imputed from TestResult after removing flags (L, H, <, >)
+        - Values outside physiological ranges for each lab are filtered out
+
+        Unit conversion corrections:
+        - Hemoglobin: Values in g/uL are divided by 100,000 to convert to g/dL
+        - WBC/Platelet: Values in 10*3/L are multiplied by 1,000,000; values in /mm3 or 10*3/mL are multiplied by 1,000
+        - Creatinine/BUN/Calcium: Values in mg/L are multiplied by 10 to convert to mg/dL
+        - Albumin: Values in mg/dL are multiplied by 100 to convert to g/L; values 1-6 are assumed to be g/dL and multiplied by 10
+        
         All PatientIDs from index_date_df are included in the output and values will be NaN for patients without lab values 
         Duplicate PatientIDs are logged as warnings but retained in output 
         Results are stored in self.labs_df attribute
@@ -1808,6 +1822,8 @@ class DataProcessorUrothelial:
 
             df['ResultDate'] = pd.to_datetime(df['ResultDate'])
             df['TestDate'] = pd.to_datetime(df['TestDate'])
+
+            # Impute TestDate for missing ResultDate. 
             df['ResultDate'] = np.where(df['ResultDate'].isna(), df['TestDate'], df['ResultDate'])
 
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
@@ -1826,135 +1842,184 @@ class DataProcessorUrothelial:
             all_loinc_codes = sum(self.LOINC_MAPPINGS.values(), [])
 
             # Filter for LOINC codes 
-            df = df[df['LOINC'].isin(all_loinc_codes)].copy()
+            df = df[df['LOINC'].isin(all_loinc_codes)]
 
             # Map LOINC codes to lab names
             for lab_name, loinc_codes in self.LOINC_MAPPINGS.items():
                 mask = df['LOINC'].isin(loinc_codes)
                 df.loc[mask, 'lab_name'] = lab_name
 
-            # Impute missing hemoglobin 
-            mask = df.query('lab_name == "hemoglobin" and TestResultCleaned.isna() and TestResult.notna()').index
-            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
-                df.loc[mask, 'TestResult']
-                .str.replace('L', '')
-                .str.strip(),
-                errors = 'coerce'
-                )
+            ## CBC PROCESSING ##
 
-            # Impute missing wbc
+            # Hemoglobin: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 3-20; and impute to TestResultCleaned
+            mask = df.query('lab_name == "hemoglobin" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 3) & (x <= 20))
+            )
+
+            # WBC: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 0-40; and impute to TestResultCleaned
             mask = df.query('lab_name == "wbc" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 2) & (x <= 15))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 0) & (x <= 40))
+            )
             
-            # Impute missing platelets 
+            # Platelet: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 0-750; and impute to TestResultCleaned
             mask = df.query('lab_name == "platelet" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 50) & (x <= 450))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 0) & (x <= 750))
+            )
             
-            # Correct units for hemoglobin, WBC, and platelets
-            # Convert 10*3/L values
+            # Hemoglobin conversion correction
+            # TestResultCleaned incorrectly stored g/uL values 
+            # Example: 12 g/uL was stored as 1,200,000 g/dL instead of 12 g/dL
+            # Need to divide by 100,000 to restore correct value
             mask = (
-                (df['TestUnits'] == '10*3/L') & 
-                (df['lab_name'].isin(['wbc', 'platelet']))
+                (df['lab_name'] == 'hemoglobin') & 
+                (df['TestUnits'] == 'g/uL')
+            )
+            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] / 100000 
+
+            # WBC and Platelet conversion correction
+            # TestResultCleaned incorrectly stored 10*3/L values 
+            # Example: 9 10*3/L was stored as 0.000009 10*9/L instead of 9 10*9/L
+            # Need to multipley 1,000,000 to restore correct value
+            mask = (
+                ((df['lab_name'] == 'wbc') | (df['lab_name'] == 'platelet')) & 
+                (df['TestUnits'] == '10*3/L')
             )
             df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] * 1000000
 
-            # Convert g/uL values 
+            # WBC and Platelet conversion correction
+            # TestResultCleaned incorrectly stored /mm3 and 10*3/mL values
+            # Example: 9 /mm3 and 9 10*3/mL was stored as 0.009 10*9/L instead of 9 10*9/L
+            # Need to multipley 1,000 to restore correct value
             mask = (
-                (df['TestUnits'] == 'g/uL') & 
-                (df['lab_name'] == 'hemoglobin')
+                ((df['lab_name'] == 'wbc') | (df['lab_name'] == 'platelet')) & 
+                ((df['TestUnits'] == '/mm3') | (df['TestUnits'] == '10*3/mL'))
             )
-            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] / 100000   
+            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] * 1000
 
-            # Impute missing creatinine 
+            ## CMP PROCESSING ##
+
+            # Creatinine: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 0-5; and impute to TestResultCleaned 
             mask = df.query('lab_name == "creatinine" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 0.3) & (x <= 3))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 0) & (x <= 5))
+            )
             
-            # Impute missing bun
+            # BUN: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 0-100; and impute to TestResultCleaned 
             mask = df.query('lab_name == "bun" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 5) & (x <= 50))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 0) & (x <= 100))
+            )
+
+            # Sodium: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 110-160; and impute to TestResultCleaned 
+            mask = df.query('lab_name == "sodium" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 110) & (x <= 160))
+            )
             
-            # Impute missing chloride 
+            # Chloride: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 70-140; and impute to TestResultCleaned 
             mask = df.query('lab_name == "chloride" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 80) & (x <= 120))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 70) & (x <= 140))
+            )
             
-            # Impute missing bicarb 
-            mask = df.query('lab_name == "bicarb" and TestResultCleaned.isna() and TestResult.notna()').index
+            # Bicarbonate: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 5-50; and impute to TestResultCleaned 
+            mask = df.query('lab_name == "bicarbonate" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 15) & (x <= 35))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 5) & (x <= 50))
+            )
 
-            # Impute missing potassium 
+            # Potassium: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 2-8; and impute to TestResultCleaned  
             mask = df.query('lab_name == "potassium" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 2.5) & (x <= 6))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 2) & (x <= 8))
+            )
             
-            # Impute missing calcium 
-            mask = df.query('lab_name == "calicum" and TestResultCleaned.isna() and TestResult.notna()').index
+            # Calcium: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 5-15; and impute to TestResultCleaned 
+            mask = df.query('lab_name == "calcium" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 7) & (x <= 14))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 5) & (x <= 15))
+            )
             
-            # Impute missing alp
+            # ALP: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 20-3000; and impute to TestResultCleaned
             mask = df.query('lab_name == "alp" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 40) & (x <= 500))
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 20) & (x <= 3000))
+            )
             
-            # Impute missing ast
+            # AST: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 5-2000; and impute to TestResultCleaned
             mask = df.query('lab_name == "ast" and TestResultCleaned.isna() and TestResult.notna()').index
-            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
-                df.loc[mask, 'TestResult']
-                .str.replace('<', '')
-                .str.strip(),
-                errors = 'coerce'
-                )
-            
-            # Impute missing alt
-            mask = df.query('lab_name == "alt" and TestResultCleaned.isna() and TestResult.notna()').index
-            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
-                df.loc[mask, 'TestResult']
-                .str.replace('<', '')
-                .str.strip(),
-                errors = 'coerce'
-                )
-            
-            # Impute missing total_bilirbuin
-            mask = df.query('lab_name == "total_bilirubin" and TestResultCleaned.isna() and TestResult.notna()').index
-            df.loc[mask, 'TestResultCleaned'] = pd.to_numeric(
-                df.loc[mask, 'TestResult']
-                .str.replace('<', '')
-                .str.strip(),
-                errors = 'coerce'
-                )
-            
-            # Impute missing albumin
-            mask = df.query('lab_name == "albumin" and TestResultCleaned.isna() and TestResult.notna()').index
             df.loc[mask, 'TestResultCleaned'] = (
-                pd.to_numeric(df.loc[mask, 'TestResult'], errors = 'coerce')
-                .where(lambda x: (x >= 1) & (x <= 6)) * 10
-                )
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 5) & (x <= 2000))
+            )
+            
+            # ALT: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 5-2000; and impute to TestResultCleaned
+            mask = df.query('lab_name == "alt" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 5) & (x <= 2000))
+            )
+            
+            # Total bilirubin: Convert to TestResult to numeric after removing L, H, <, and >; filter for ranges from 0-40; and impute to TestResultCleaned
+            mask = df.query('lab_name == "total_bilirubin" and TestResultCleaned.isna() and TestResult.notna()').index
+            df.loc[mask, 'TestResultCleaned'] = (
+                pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
+                .where(lambda x: (x >= 0) & (x <= 40))
+            )
+            
+            # Albumin
+            mask = df.query('lab_name == "albumin" and TestResultCleaned.isna() and TestResult.notna()').index
+            # First get the cleaned numeric values
+            cleaned_alb_values = pd.to_numeric(df.loc[mask, 'TestResult'].str.replace(r'[LH<>]', '', regex=True).str.strip(), errors='coerce')
 
-            # Filter for desired window period for baseline labs
+            # Identify which values are likely in which unit system
+            # Values 1-6 are likely g/dL and need to be converted to g/L
+            gdl_mask = (cleaned_alb_values >= 1) & (cleaned_alb_values <= 6)
+            # Values 10-60 are likely already in g/L
+            gl_mask = (cleaned_alb_values >= 10) & (cleaned_alb_values <= 60)
+
+            # Convert g/dL values to g/L (multiply by 10)
+            df.loc[mask[gdl_mask], 'TestResultCleaned'] = cleaned_alb_values[gdl_mask] * 10
+
+            # Keep g/L values as they are
+            df.loc[mask[gl_mask], 'TestResultCleaned'] = cleaned_alb_values[gl_mask]
+
+            # Creatinine, BUN, and calcium conversion correction
+            # TestResultCleaned incorrectly stored mg/L values 
+            # Example: 1.6 mg/L was stored as 0.16 mg/dL instead of 1.6 mg/dL
+            # Need to divide by 10 to restore correct value
+            mask = (
+                ((df['lab_name'] == 'creatinine') | (df['lab_name'] == 'bun') | (df['lab_name'] == 'calcium')) & 
+                (df['TestUnits'] == 'mg/L')
+            )
+            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] * 10 
+
+            # Albumin conversion correction
+            # TestResultCleaned incorrectly stored mg/dL values 
+            # Example: 3.7 mg/dL was stored as 0.037 g/L instead of 37 g/L
+            # Need to multiply 100 to restore correct value
+            mask = (
+                (df['lab_name'] == 'albumin') & 
+                (df['TestUnits'] == 'mg/dL')
+            )
+            df.loc[mask, 'TestResultCleaned'] = df.loc[mask, 'TestResultCleaned'] * 100         
+
+            # Filter for desired window period for baseline labs after removing missing values after above imputation
+            df = df.query('TestResultCleaned.notna()')
             df['index_to_lab'] = (df['ResultDate'] - df[index_date_column]).dt.days
             
             df_lab_index_filtered = df[
@@ -1986,7 +2051,7 @@ class DataProcessorUrothelial:
                 .rename_axis(columns = None)
                 .rename(columns = lambda x: f'{x}_max')
                 .reset_index()
-                )
+            )
             
             min_df = (
                 df_lab_summary_filtered
@@ -1996,7 +2061,7 @@ class DataProcessorUrothelial:
                 .rename_axis(columns = None)
                 .rename(columns = lambda x: f'{x}_min')
                 .reset_index()
-                )
+            )
             
             std_df = (
                 df_lab_summary_filtered
@@ -2006,24 +2071,24 @@ class DataProcessorUrothelial:
                 .rename_axis(columns = None)
                 .rename(columns = lambda x: f'{x}_std')
                 .reset_index()
-                )
+            )
             
             slope_df = (
                 df_lab_index_filtered
                 .groupby(['PatientID', 'lab_name'])[['index_to_lab', 'TestResultCleaned']]
                 .apply(lambda x: np.polyfit(x['index_to_lab'],
                                         x['TestResultCleaned'],
-                                        1)[0]
-                    if (x['TestResultCleaned'].notna().sum() > 1 and # at least 2 non-NaN lab values
-                        x['index_to_lab'].notna().sum() > 1 and # at least 2 non-NaN time points
-                        len(x['index_to_lab'].unique()) > 1)  # time points are not all the same
-                    else np.nan)
+                                        1)[0] # Extract slope coefficient from linear fit
+                    if (x['TestResultCleaned'].notna().sum() > 1 and # Need at least 2 valid measurements
+                        x['index_to_lab'].notna().sum() > 1 and      # Need at least 2 valid time points
+                        len(x['index_to_lab'].unique()) > 1)         # Time points must not be identical
+                    else np.nan) # Return NaN if conditions for valid slope calculation aren't met
                 .reset_index()
                 .pivot(index = 'PatientID', columns = 'lab_name', values = 0)
                 .rename_axis(columns = None)
                 .rename(columns = lambda x: f'{x}_slope')
                 .reset_index()
-                )
+            )
             
             # Merge dataframes - start with index_date_df to ensure all PatientIDs are included
             final_df = index_date_df[['PatientID']].copy()
