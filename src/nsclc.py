@@ -422,11 +422,11 @@ class DataProcessorNSCLC:
         self.diagnosis_df = None
         self.mortality_df = None
 
-    def process_enhanced_adv(self, 
-                             file_path: str,
-                             patient_ids: list = None,
-                             drop_stage: bool = True, 
-                             drop_dates: bool = True) -> pd.DataFrame: 
+    def process_enhanced(self, 
+                         file_path: str,
+                         patient_ids: list = None,
+                         drop_stage: bool = True, 
+                         drop_dates: bool = True) -> pd.DataFrame: 
         """
         Processes Enhanced_AdvancedNSCLC.csv to standardize categories, consolidate staging information, and calculate time-based metrics between key clinical events.
 

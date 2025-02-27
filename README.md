@@ -6,27 +6,28 @@
 
 Each cancer type has its own dedicated data processor class (e.g., `DataProcessorUrothelial`). These classes contain specialized functions for cleaning specific Flatiron CSV files, with cleaning rules tailored to each cancer type and aligned with an index date of interest. Available functions include: 
 
+- `process_enhanced()`: Cleans Enhanced_{cancer}.csv
 - `process_demographics()`: Cleans Demographics.csv
+- `process_mortality()`: Cleans Enhanced_Mortality_V2.csv
 - `process_ecog()`: Cleans ECOG.csv
 - `process_medications()`: Cleans MedicationAdministration.csv
 - `process_diagnosis()`: Cleans Diagnosis.csv
 - `process_labs()`: Cleans Lab.csv
 - `process_vitals()`: Clean Vitals.csv 
-- `process_biomarkers()`: Cleans Biomarkers.csv
+- `process_biomarkers()`: Cleans {cancer}_Biomarkers.csv
 - `process_insurance()`: Cleans Insurance.csv
-- `process_mortality()`: Cleans Enhanced_Mortality_V2.csv
 - `process_practice()`: Cleans Practice.csv
 
-Currently available processor:
+Currently available processors:
 - Advanced Urothelial Cancer (`DataProcessorUrothelial`)
-
-In development:
 - Advanced NSCLC (`DataProcessorNSCLC`)
 
+In development:
+- Metastatic Colorectal Cancer (`DataProcessorColorectal`)
+
 Coming soon: 
-- Metastatic Breast Cancer
-- Metastatic Colorectal Cancer 
-- Metastatic Prostate Cancer
+- Metastatic Breast Cancer (`DataProcessorBreast`)
+- Metastatic Prostate Cancer (`DataProcessorProstate`)
 
 ## Usage 
 

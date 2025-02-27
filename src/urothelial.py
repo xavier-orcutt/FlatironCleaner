@@ -449,12 +449,12 @@ class DataProcessorUrothelial:
         self.diagnosis_df = None
         self.insurance_df = None
 
-    def process_enhanced_adv(self,
-                             file_path: str,
-                             patient_ids: list = None,
-                             drop_stages: bool = True, 
-                             drop_surgery_type: bool = True,
-                             drop_dates: bool = True) -> pd.DataFrame: 
+    def process_enhanced(self,
+                         file_path: str,
+                         patient_ids: list = None,
+                         drop_stages: bool = True, 
+                         drop_surgery_type: bool = True,
+                         drop_dates: bool = True) -> pd.DataFrame: 
         """
         Processes Enhanced_AdvUrothelial.csv to standardize categories, consolidate 
         staging information, and calculate time-based metrics between key clinical events.
