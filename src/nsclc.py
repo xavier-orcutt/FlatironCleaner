@@ -357,6 +357,58 @@ class DataProcessorNSCLC:
         'depression': -3
     }
 
+    ICD_9_METS_MAPPING = {
+        # Lymph Nodes
+        r'^196': 'lymph_mets',
+        
+        # Respiratory
+        r'^1970|^1971|^1972|^1973': 'resp_mets',
+
+        # Liver
+        r'^1977': 'liver_mets',
+        
+        # Bone
+        r'^1985': 'bone_mets',
+        
+        # Brain/CNS
+        r'^1983|^1984': 'brain_mets',
+        
+        # Adrenal
+        r'^1987': 'adrenal_mets',
+        
+        # Other visceral metastases
+        r'^1974|^1975|^1976|^1978': 'other_viscera_mets',
+        
+        # Other Sites
+        r'^1980|^1981|^1982|^1986|^1988|^199': 'other_mets'
+    }
+
+    ICD_10_METS_MAPPING = {
+        # Lymph Nodes
+        r'^C77': 'lymph_mets',
+
+        # Respiratory
+        r'^C780|^C781|^C782|^C783': 'resp_mets',
+
+        # Liver
+        r'^C787': 'liver_mets',
+
+        # Bone
+        r'^C795': 'bone_mets',
+
+        # Brain/CNS
+        r'^C793|^C794': 'brain_mets',
+
+        # Adrenal
+        r'^C797': 'adrenal_mets',
+
+        # Other viscera
+        r'^C784|^C785|^C786|^C788': 'other_viscera_mets',
+
+        # Other Sites
+        r'^C790|^C791|^C792|^C796|^C798|^C799|^C80': 'other_mets'
+    }
+
     def __init__(self):
         self.enhanced_df = None
         self.demographics_df = None
@@ -2209,10 +2261,7 @@ class DataProcessorNSCLC:
                           days_after: int = 0) -> pd.DataFrame:
         """
         Processes Diagnosis.csv by mapping ICD 9 and 10 codes to Elixhauser comorbidity index and calculates a van Walraven score. 
-        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details 
-        on ICD mapping to comorbidities. 
-        See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data"
-        by van Walraven et al for details on van Walraven score. 
+        It also determines site of metastases based on ICD 9 and 10 codes. 
         
         Parameters
         ----------
@@ -2260,12 +2309,21 @@ class DataProcessorNSCLC:
             - drug_abuse : binary indicator for drug abuse
             - psychoses : binary indicator for psychoses
             - depression : binary indicator for depression
-            - van_walraven_score : weighted composite of the binary Elixhauser comorbidities 
+            - van_walraven_score : weighted composite of the binary Elixhauser comorbidities
+            - lymph_mets : binary indicator for lymph node metastases
+            - resp_mets : binary indicator for respiratory metastases
+            - liver_mets : binary indicator for liver metastases
+            - bone_mets : binary indicator for bone metastases
+            - brain_mets : binary indicator for brain/CNS metastases
+            - adrenal_mets : binary indicator for adrenal metastases
+            - other_viscera_mets : binary indicator for other visceral metastases
+            - other_mets : binary indicator for other sites of metastases  
 
         Notes
         -----
-        Maps both ICD-9-CM and ICD-10-CM codes to Elixhauser comorbidities and metastatic sites
-        Metastatic cancer and tumor categories are excluded in the Elxihauser comorbidities and van Walraven score as this is intended for an advanced cancer population
+        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details on ICD mapping to comorbidities. 
+        See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data" by van Walraven et al for details on van Walraven score.
+        Metastatic cancer and tumor categories are excluded in the Elixhauser comorbidities and van Walraven score as all patients in the cohort have both
         All PatientIDs from index_date_df are included in the output and values will be set to 0 for patients with misisng Elixhauser comorbidities, but NaN for van_walraven_score
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.diagnoses_df attribute
@@ -2366,9 +2424,56 @@ class DataProcessorNSCLC:
             van_walraven_score = df_elix_combined.drop('PatientID', axis=1).mul(self.VAN_WALRAVEN_WEIGHTS).sum(axis=1)
             df_elix_combined['van_walraven_score'] = van_walraven_score
 
+            # Metastatic sites based on ICD-9 codes 
+            df9_mets = (
+                df_filtered
+                .query('DiagnosisCodeSystem == "ICD-9-CM"')
+                .assign(diagnosis_code = lambda x: x['DiagnosisCode'].replace(r'\.', '', regex=True)) # Remove decimal points from ICD-9 codes to make mapping easier 
+                .drop_duplicates(subset = ['PatientID', 'diagnosis_code'], keep = 'first')
+                .assign(met_site=lambda x: x['diagnosis_code'].map(
+                    lambda code: next((site for pattern, site in self.ICD_9_METS_MAPPING.items()
+                                    if re.match(pattern, code)), 'no_met')))
+                .query('met_site != "no_met"') 
+                .drop_duplicates(subset=['PatientID', 'met_site'], keep = 'first')
+                .assign(value=1)  # Add a column of 1s to use for pivot
+                .pivot(index = 'PatientID', columns = 'met_site', values = 'value')
+                .fillna(0) 
+                .astype('Int64')  
+                .rename_axis(columns = None)
+                .reset_index()
+            )
+
+            # Metastatic sites based on ICD-10 codes 
+            df10_mets = (
+                df_filtered
+                .query('DiagnosisCodeSystem == "ICD-10-CM"')
+                .assign(diagnosis_code = lambda x: x['DiagnosisCode'].replace(r'\.', '', regex=True)) # Remove decimal points from ICD-9 codes to make mapping easier 
+                .drop_duplicates(subset = ['PatientID', 'diagnosis_code'], keep = 'first')
+                .assign(met_site=lambda x: x['diagnosis_code'].map(
+                    lambda code: next((site for pattern, site in self.ICD_10_METS_MAPPING.items()
+                                    if re.match(pattern, code)), 'no_met')))
+                .query('met_site != "no_met"') 
+                .drop_duplicates(subset=['PatientID', 'met_site'], keep = 'first')
+                .assign(value=1)  # Add a column of 1s to use for pivot
+                .pivot(index = 'PatientID', columns = 'met_site', values = 'value')
+                .fillna(0) 
+                .astype('Int64')  
+                .rename_axis(columns = None)
+                .reset_index()
+            )
+
+            all_columns_mets = ['PatientID'] + list(self.ICD_9_METS_MAPPING.values())
+            
+            # Reindex both dataframes to have all columns, filling missing ones with 0
+            df9_mets_aligned = df9_mets.reindex(columns = all_columns_mets, fill_value = 0)
+            df10_mets_aligned = df10_mets.reindex(columns = all_columns_mets, fill_value = 0)
+
+            df_mets_combined = pd.concat([df9_mets_aligned, df10_mets_aligned]).groupby('PatientID').max().reset_index()
+
             # Start with index_date_df to ensure all PatientIDs are included
             final_df = index_date_df[['PatientID']].copy()
             final_df = pd.merge(final_df, df_elix_combined, on = 'PatientID', how = 'left')
+            final_df = pd.merge(final_df, df_mets_combined, on = 'PatientID', how = 'left')
 
             binary_columns = [col for col in final_df.columns 
                     if col not in ['PatientID', 'van_walraven_score']]

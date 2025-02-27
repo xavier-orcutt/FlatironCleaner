@@ -2324,10 +2324,6 @@ class DataProcessorUrothelial:
         """
         Processes Diagnosis.csv by mapping ICD 9 and 10 codes to Elixhauser comorbidity index and calculates a van Walraven score. 
         It also determines site of metastases based on ICD 9 and 10 codes. 
-        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details 
-        on ICD mapping to comorbidities. 
-        See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data"
-        by van Walraven et al for details on van Walraven score. 
         
         Parameters
         ----------
@@ -2388,7 +2384,8 @@ class DataProcessorUrothelial:
 
         Notes
         -----
-        Maps both ICD-9-CM and ICD-10-CM codes to Elixhauser comorbidities and metastatic sites
+        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details on ICD mapping to comorbidities. 
+        See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data" by van Walraven et al for details on van Walraven score.
         Metastatic cancer and tumor categories are excluded in the Elxihauser comorbidities and van Walraven score as this is intended for an advanced cancer population
         All PatientIDs from index_date_df are included in the output and values will be set to 0 for patients with misisng Elixhauser comorbidities or metastasis sites, but NaN for van_walraven_score
         Duplicate PatientIDs are logged as warnings but retained in output
@@ -2504,7 +2501,7 @@ class DataProcessorUrothelial:
                 .assign(value=1)  # Add a column of 1s to use for pivot
                 .pivot(index = 'PatientID', columns = 'met_site', values = 'value')
                 .fillna(0) 
-                .astype(int)  
+                .astype('Int64')  
                 .rename_axis(columns = None)
                 .reset_index()
             )
@@ -2523,7 +2520,7 @@ class DataProcessorUrothelial:
                 .assign(value=1)  # Add a column of 1s to use for pivot
                 .pivot(index = 'PatientID', columns = 'met_site', values = 'value')
                 .fillna(0) 
-                .astype(int)  
+                .astype('Int64')  
                 .rename_axis(columns = None)
                 .reset_index()
             )
