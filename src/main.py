@@ -14,7 +14,7 @@ if __name__ == "__main__":
     ecog_file_path = "data_nsclc/ECOG.csv"
     vitals_file_path = "data_nsclc/Vitals.csv"
     lab_file_path =  "data_nsclc/Lab.csv"
-    #medication_file_path =  "data_nsclc/MedicationAdministration.csv"
+    medication_file_path =  "data_nsclc/MedicationAdministration.csv"
     #diagnosis_file_path = "data_nsclc/Diagnosis.csv"
     insurance_file_path = "data_nsclc/Insurance.csv"
 
@@ -63,11 +63,11 @@ if __name__ == "__main__":
                                      days_after = 0,
                                      summary_lookback = 180)
     
-    #medication_df = processor.process_medications(medication_file_path,
-    #                                              index_date_df = df,
-    #                                              index_date_column='AdvancedDiagnosisDate',
-    #                                              days_before=180,
-    #                                              days_after=0)
+    medications_df = processor.process_medications(medication_file_path,
+                                                  index_date_df = df,
+                                                  index_date_column='AdvancedDiagnosisDate',
+                                                  days_before=180,
+                                                  days_after=0)
     
 
     #diagnosis_df = processor.process_diagnosis(diagnosis_file_path,
@@ -93,7 +93,8 @@ if __name__ == "__main__":
                                    ecog_df,
                                    vitals_df,
                                    insurance_df,
-                                   labs_df)
+                                   labs_df,
+                                   medications_df)
     
     if merged_data is not None:
         print(merged_data.head())

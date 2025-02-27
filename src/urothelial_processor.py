@@ -2139,10 +2139,10 @@ class DataProcessorUrothelial:
         pd.DataFrame
             - PatientID : ojbect
                 unique patient identifier
-            - anticoagulated : Int64
+            - anticoagulant : Int64
                 binary indicator (0/1) for therapeutic anticoagulation (heparin IV with specific units, enoxaparin >40mg, dalteparin >5000u, fondaparinux >2.5mg, or any DOAC/warfarin) 
             - opioid : Int64
-                binary indicator (0/1) for oral, transdermal, or sublingual opioids
+                binary indicator (0/1) for oral, transdermal, sublingual, or enteral opioids
             - steroid : Int64
                 binary indicator (0/1) for oral steroids
             - antibiotic : Int64
@@ -2180,6 +2180,9 @@ class DataProcessorUrothelial:
             logging.info(f"Successfully read MedicationAdministration.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             df['AdministeredDate'] = pd.to_datetime(df['AdministeredDate'])
+            df['AdministeredAmount'] = df['AdministeredAmount'].astype(float)
+            df = df.query('CommonDrugName != "Clinical study drug"')
+                                        
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
 
             # Select PatientIDs that are included in the index_date_df the merge on 'left'
@@ -2189,10 +2192,9 @@ class DataProcessorUrothelial:
                 index_date_df[['PatientID', index_date_column]],
                 on = 'PatientID',
                 how = 'left'
-                )
+            )
             logging.info(f"Successfully merged MedicationAdministration.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
             
-
             # Filter for desired window period for baseline labs
             df['index_to_med'] = (df['AdministeredDate'] - df[index_date_column]).dt.days
             
@@ -2205,7 +2207,6 @@ class DataProcessorUrothelial:
                 (
                     df_filtered
                     .query('CommonDrugName == "heparin (porcine)"')
-                    .query('Route == "Intravenous"')
                     .query('AdministeredUnits in ["unit/kg/hr", "U/hr", "U/kg"]')
                     .PatientID
                 ),
@@ -2244,8 +2245,8 @@ class DataProcessorUrothelial:
             opioid_IDs = (
                 df_filtered
                 .query('DrugCategory == "pain agent"')
-                .query('Route in ["Oral", "Transdermal", "Sublingual"]')
-                .query('DrugName in ["oxycodone hcl", "hydromorphone hcl", "oxycodone hcl/acetaminophen", "morphine sulfate", "methadone hcl", "hydrocodone bitartrate/acetaminophen", "fentanyl", "levorphanol tartrate", "oxymorphone hcl", "tapentadol hcl", "hydrocodone bitartrate"]')
+                .query('Route in ["Oral", "Transdermal", "Sublingual", "enteral", "Subcutaneous"]')
+                .query('CommonDrugName in ["oxycodone", "morphine", "hydromorphone", "acetaminophen/oxycodone", "tramadol", "methadone", "fentanyl", "acetaminophen/hydrocodone", "acetaminophen/codeine", "codeine", "oxymorphone", "tapentadol", "buprenorphine", "acetaminophen/tramadol", "hydrocodone", "levorphanol", "acetaminophen/tramadol"]')
                 .PatientID
             ).unique()
             
@@ -2253,7 +2254,6 @@ class DataProcessorUrothelial:
                 df_filtered
                 .query('DrugCategory == "steroid"')
                 .query('Route == "Oral"')
-                .query('DrugName != "Clinical study drug"')
                 .PatientID
             ).unique()
             
@@ -2267,7 +2267,7 @@ class DataProcessorUrothelial:
                 "ampicillin", "amoxicillin/clavulanic acid", "ertapenem", 
                 "dextrose, iso-osmotic/piperacillin/tazobactam", "ceftazidime", 
                 "cephalexin", "cefuroxime", "amoxicillin", "oxacillin", 
-                "cefdinir", "cefpodoxime",
+                "cefdinir", "cefpodoxime", "cefadroxil", "penicillin g",
                 
                 # Fluoroquinolones
                 "ciprofloxacin", "levofloxacin", "moxifloxacin",
@@ -2335,7 +2335,7 @@ class DataProcessorUrothelial:
 
             # Create dictionary of medication categories and their respective IDs
             med_categories = {
-                'anticoagulated': anticoagulated_IDs,
+                'anticoagulant': anticoagulated_IDs,
                 'opioid': opioid_IDs,
                 'steroid': steroid_IDs,
                 'antibiotic': antibiotic_IDs,
