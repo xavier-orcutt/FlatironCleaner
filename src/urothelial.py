@@ -770,14 +770,12 @@ class DataProcessorUrothelial:
                           index_date_column: str,
                           visit_path: str = None, 
                           telemedicine_path: str = None, 
-                          biomarker_path: str = None, 
+                          biomarkers_path: str = None, 
                           oral_path: str = None,
                           progression_path: str = None,
                           drop_dates: bool = True) -> pd.DataFrame:
         """
-        Processes Enhanced_Mortality_V2.csv by cleaning data types, calculating time 
-        from index date to death/censor, and determining mortality events. Handles
-        incomplete death dates by imputing missing day/month values.
+        Processes Enhanced_Mortality_V2.csv by cleaning data types, calculating time from index date to death/censor, and determining mortality events. 
 
         Parameters
         ----------
@@ -787,18 +785,16 @@ class DataProcessorUrothelial:
             DataFrame containing PatientID and index dates. Only mortality data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
-        df_merge_type : str, default='left'
-            Merge type for pd.merge(index_date_df, mortality_data, on = 'PatientID', how = df_merge_type)
         visit_path : str
-            Path to Visit.csv file
+            Path to Visit.csv file, used to determine last EHR activity date for censored patients
         telemedicine_path : str
-            Path to Telemedicine.csv file
-        biomarker_path : str
-            Path to Enhanced_AdvUrothelialBiomarkers.csv file
+            Path to Telemedicine.csv file, used to determine last EHR activity date for censored patients
+        biomarkers_path : str
+            Path to Enhanced_AdvUrothelialBiomarkers.csv file, used to determine last EHR activity date for censored patients
         oral_path : str
-            Path to Enhanced_AdvUrothelial_Orals.csv file
+            Path to Enhanced_AdvUrothelial_Orals.csv file, used to determine last EHR activity date for censored patients
         progression_path : str
-            Path to Enhanced_AdvUrothelial_Progression.csv file
+            Path to Enhanced_AdvUrothelial_Progression.csv file, used to determine last EHR activity date for censored patients
         drop_dates : bool, default = True
             If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
@@ -812,11 +808,29 @@ class DataProcessorUrothelial:
             - event : Int64
                 mortality status (1 = death, 0 = censored)
 
+        If drop_dates=False, the DataFrame will also include:
+            - {index_date_column} : datetime64
+                The index date for each patient
+            - DateOfDeath : datetime64
+                Date of death (if available)
+            - last_ehr_activity : datetime64
+                Most recent EHR activity date (if available from supplementary files)
+                
         Notes
         ------
-        Death date imputation:
-        - Missing day : Imputed to 15th of the month
-        - Missing month and day : Imputed to July 1st
+        Death date handling:
+        - Known death date: 'event' = 1, 'duration' = days from index to death
+        - No death date: 'event' = 0, 'duration' = days from index to last EHR activity
+        
+        Death date imputation for incomplete dates:
+        - Missing day: Imputed to 15th of the month
+        - Missing month and day: Imputed to July 1st of the year
+    
+        Censoring logic:
+        - Patients without death dates are censored at their last EHR activity
+        - Last EHR activity is determined as the maximum date across all provided supplementary files (visit, telemedicine, biomarkers, oral, progression)
+        - If no supplementary files are provided or a patient has no activity in supplementary files, duration may be null for censored patients
+        
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.mortality_df
         """
@@ -842,101 +856,74 @@ class DataProcessorUrothelial:
 
             # Process index dates and merge
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
-            df_death = pd.merge(
+            df = pd.merge(
                 index_date_df[['PatientID', index_date_column]],
                 df,
                 on = 'PatientID',
                 how = 'left'
             )
-            
-            logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df_death.shape} and unique PatientIDs: {(df_death.PatientID.nunique())}")
+            logging.info(f"Successfully merged Enhanced_Mortality_V2.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
                 
             # Create event column
-            df_death['event'] = df_death['DateOfDeath'].notna().astype('Int64')
+            df['event'] = df['DateOfDeath'].notna().astype('Int64')
 
-            # Initialize df_final
-            df_final = df_death
+            # Initialize final dataframe
+            final_df = df.copy()
+
+            # Create a list to store all last activity date dataframes
+            patient_last_dates = []
 
             # Determine last EHR data
-            if all(path is None for path in [visit_path, telemedicine_path, biomarker_path, oral_path, progression_path]):
-                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarker_path, oral_path, or progression_path must be provided to calculate duration for those with a missing death date")
-
+            if all(path is None for path in [visit_path, telemedicine_path, biomarkers_path, oral_path, progression_path]):
+                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarkers_path, oral_path, or progression_path must be provided to calculate duration for those with a missing death date")
             else: 
-                if visit_path is not None and telemedicine_path is not None:
+                # Process visit and telemedicine data
+                if visit_path is not None or telemedicine_path is not None:
+                    visit_dates = []
                     try:
-                        df_visit = pd.read_csv(visit_path)
-                        df_tele = pd.read_csv(telemedicine_path)
-
-                        df_visit_tele = (
-                            pd.concat([
-                                df_visit[['PatientID', 'VisitDate']],
-                                df_tele[['PatientID', 'VisitDate']]
-                                ]))
+                        if visit_path is not None:
+                            df_visit = pd.read_csv(visit_path)
+                            df_visit['VisitDate'] = pd.to_datetime(df_visit['VisitDate'])
+                            visit_dates.append(df_visit[['PatientID', 'VisitDate']])
+                            
+                        if telemedicine_path is not None:
+                            df_tele = pd.read_csv(telemedicine_path)
+                            df_tele['VisitDate'] = pd.to_datetime(df_tele['VisitDate'])
+                            visit_dates.append(df_tele[['PatientID', 'VisitDate']])
                         
-                        df_visit_tele['VisitDate'] = pd.to_datetime(df_visit_tele['VisitDate'])
-
-                        df_visit_tele_max = (
-                            df_visit_tele
-                            .query("PatientID in @index_date_df.PatientID")  
-                            .groupby('PatientID', observed = True)['VisitDate']  
-                            .max()
-                            .to_frame(name = 'last_visit_date')          
-                            .reset_index()
+                        if visit_dates:
+                            df_visit_combined = pd.concat(visit_dates)
+                            df_visit_max = (
+                                df_visit_combined
+                                .query("PatientID in @index_date_df.PatientID")
+                                .groupby('PatientID')['VisitDate']
+                                .max()
+                                .to_frame(name='last_visit_date')
+                                .reset_index()
                             )
+                            patient_last_dates.append(df_visit_max)
                     except Exception as e:
-                        logging.error(f"Error reading Visit.csv and/or Telemedicine.csv files: {e}")
-                        return None
-
-                if visit_path is not None and telemedicine_path is None:
-                    try: 
-                        df_visit = pd.read_csv(visit_path)
-                        df_visit['VisitDate'] = pd.to_datetime(df_visit['VisitDate'])
-
-                        df_visit_max = (
-                            df_visit
-                            .query("PatientID in @index_date_df.PatientID")  
-                            .groupby('PatientID', observed = True)['VisitDate']  
-                            .max()
-                            .to_frame(name = 'last_visit_date')          
-                            .reset_index()
-                        )
-                    except Exception as e:
-                        logging.error(f"Error reading Visit.csv file: {e}")
-                        return None
-
-                if telemedicine_path is not None and visit_path is None:
-                    try: 
-                        df_tele = pd.read_csv(telemedicine_path)
-                        df_tele['VisitDate'] = pd.to_datetime(df_tele['VisitDate'])
-
-                        df_tele_max = (
-                            df_tele
-                            .query("PatientID in @index_date_df.PatientID")  
-                            .groupby('PatientID', observed = True)['VisitDate']  
-                            .max()
-                            .to_frame(name = 'last_visit_date')          
-                            .reset_index()
-                        )
-                    except Exception as e:
-                        logging.error(f"Error reading Telemedicine.csv file: {e}")
-                        return None
+                        logging.error(f"Error processing Visit.csv or Telemedicine.csv: {e}")
                                             
-                if biomarker_path is not None:
+                # Process biomarkers data
+                if biomarkers_path is not None:
                     try: 
-                        df_biomarker = pd.read_csv(biomarker_path)
-                        df_biomarker['SpecimenCollectedDate'] = pd.to_datetime(df_biomarker['SpecimenCollectedDate'])
+                        df_biomarkers = pd.read_csv(biomarkers_path)
+                        df_biomarkers['SpecimenCollectedDate'] = pd.to_datetime(df_biomarkers['SpecimenCollectedDate'])
 
-                        df_biomarker_max = (
-                            df_biomarker
+                        df_biomarkers_max = (
+                            df_biomarkers
                             .query("PatientID in @index_date_df.PatientID")
-                            .groupby('PatientID', observed = True)['SpecimenCollectedDate'].max()
-                            .to_frame(name = 'last_biomarker_date')
+                            .groupby('PatientID')['SpecimenCollectedDate']
+                            .max()
+                            .to_frame(name='last_biomarker_date')
                             .reset_index()
                         )
+                        patient_last_dates.append(df_biomarkers_max)
                     except Exception as e:
                         logging.error(f"Error reading Enhanced_AdvUrothelialBiomarkers.csv file: {e}")
-                        return None
 
+                # Process oral medication data
                 if oral_path is not None:
                     try:
                         df_oral = pd.read_csv(oral_path)
@@ -946,15 +933,17 @@ class DataProcessorUrothelial:
                         df_oral_max = (
                             df_oral
                             .query("PatientID in @index_date_df.PatientID")
-                            .assign(max_date = df_oral[['StartDate', 'EndDate']].max(axis = 1))
-                            .groupby('PatientID', observed = True)['max_date'].max()
-                            .to_frame(name = 'last_oral_date')
+                            .assign(max_date=lambda x: x[['StartDate', 'EndDate']].max(axis=1))
+                            .groupby('PatientID')['max_date']
+                            .max()
+                            .to_frame(name='last_oral_date')
                             .reset_index()
                         )
+                        patient_last_dates.append(df_oral_max)
                     except Exception as e:
                         logging.error(f"Error reading Enhanced_AdvUrothelial_Orals.csv file: {e}")
-                        return None
 
+                # Process progression data
                 if progression_path is not None:
                     try: 
                         df_progression = pd.read_csv(progression_path)
@@ -964,91 +953,62 @@ class DataProcessorUrothelial:
                         df_progression_max = (
                             df_progression
                             .query("PatientID in @index_date_df.PatientID")
-                            .assign(max_date = df_progression[['ProgressionDate', 'LastClinicNoteDate']].max(axis = 1))
-                            .groupby('PatientID', observed = True)['max_date'].max()
-                            .to_frame(name = 'last_progression_date')
+                            .assign(max_date=lambda x: x[['ProgressionDate', 'LastClinicNoteDate']].max(axis=1))
+                            .groupby('PatientID')['max_date']
+                            .max()
+                            .to_frame(name='last_progression_date')
                             .reset_index()
                         )
+                        patient_last_dates.append(df_progression_max)
                     except Exception as e:
                         logging.error(f"Error reading Enhanced_AdvUrothelial_Progression.csv file: {e}")
-                        return None
 
-                # Create a dictionary to store all available dataframes
-                dfs_to_merge = {}
-
-                # Add dataframes to dictionary if they exist
-                if visit_path is not None and telemedicine_path is not None:
-                    dfs_to_merge['visit_tele'] = df_visit_tele_max
-                elif visit_path is not None:
-                    dfs_to_merge['visit'] = df_visit_max
-                elif telemedicine_path is not None:
-                    dfs_to_merge['tele'] = df_tele_max
-
-                if biomarker_path is not None:
-                    dfs_to_merge['biomarker'] = df_biomarker_max
-                if oral_path is not None:
-                    dfs_to_merge['oral'] = df_oral_max
-                if progression_path is not None:
-                    dfs_to_merge['progression'] = df_progression_max
-
-                # Merge all available dataframes
-                if dfs_to_merge:
-                    df_last_ehr_activity = None
-                    for name, df in dfs_to_merge.items():
-                        if df_last_ehr_activity is None:
-                            df_last_ehr_activity = df
-                        else:
-                            df_last_ehr_activity = pd.merge(df_last_ehr_activity, df, on = 'PatientID', how = 'outer')
-
-                if df_last_ehr_activity is not None:
-                    # Get the available date columns that exist in our merged dataframe
-                    last_date_columns = [col for col in ['last_visit_date', 'last_oral_date', 'last_biomarker_date', 'last_progression_date']
-                                        if col in df_last_ehr_activity.columns]
-                    logging.info(f"The follwing columns {last_date_columns} are used to calculate the last EHR date")
+                # Combine all last activity dates
+                if patient_last_dates:
+                    # Start with the first dataframe
+                    combined_dates = patient_last_dates[0]
                     
-                    if last_date_columns:
-                        single_date = (
-                            df_last_ehr_activity
-                            .assign(last_ehr_activity = df_last_ehr_activity[last_date_columns].max(axis = 1))
-                            .filter(items = ['PatientID', 'last_ehr_activity'])
-                        )
-
-                        df_final = pd.merge(df_death, single_date, on = 'PatientID', how = 'left')
-
+                    # Merge with any additional dataframes
+                    for date_df in patient_last_dates[1:]:
+                        combined_dates = pd.merge(combined_dates, date_df, on = 'PatientID', how = 'outer')
+                    
+                    # Calculate the last activity date across all columns
+                    date_columns = [col for col in combined_dates.columns if col != 'PatientID']
+                    if date_columns:
+                        logging.info(f"The following columns {date_columns} are used to calculate the last EHR date")
+                        combined_dates['last_ehr_activity'] = combined_dates[date_columns].max(axis=1)
+                        single_date = combined_dates[['PatientID', 'last_ehr_activity']]
+                        
+                        # Merge with the main dataframe
+                        final_df = pd.merge(final_df, single_date, on='PatientID', how='left')
+     
             # Calculate duration
-            if 'last_ehr_activity' in df_final.columns:
-                df_final['duration'] = np.where(df_final['event'] == 0, 
-                                                (df_final['last_ehr_activity'] - df_final[index_date_column]).dt.days, 
-                                                (df_final['DateOfDeath'] - df_final[index_date_column]).dt.days)
+            if 'last_ehr_activity' in final_df.columns:
+                final_df['duration'] = np.where(
+                    final_df['event'] == 0, 
+                    (final_df['last_ehr_activity'] - final_df[index_date_column]).dt.days, 
+                    (final_df['DateOfDeath'] - final_df[index_date_column]).dt.days
+                )
                 
-                # Drop date varibales if specified
+                # Drop date variables if specified
                 if drop_dates:               
-                    df_final = df_final.drop(columns = [index_date_column, 'DateOfDeath', 'last_ehr_activity'])
-
-                # Check for duplicate PatientIDs
-                if len(df_final) > df_final['PatientID'].nunique():
-                    duplicate_ids = df_final[df_final.duplicated(subset = ['PatientID'], keep = False)]['PatientID'].unique()
-                    logging.warning(f"Duplicate PatientIDs found: {duplicate_ids}")
-
-                logging.info(f"Successfully processed Enhanced_Mortality_V2.csv file with final shape: {df_final.shape} and unique PatientIDs: {(df_final['PatientID'].nunique())}. There are {df_final['duration'].isna().sum()} out of {df_final['PatientID'].nunique()} patients with missing duration values")
-                self.mortality_df = df_final
-                return df_final
+                    final_df = final_df.drop(columns=[index_date_column, 'DateOfDeath', 'last_ehr_activity'])
                        
             else: 
-                df_final['duration'] = (df_final['DateOfDeath'] - df_final[index_date_column]).dt.days
-
-                # Drop date varibales if specified
+                final_df['duration'] = (final_df['DateOfDeath'] - final_df[index_date_column]).dt.days
+            
+                # Drop date variables if specified
                 if drop_dates:               
-                    df_final = df_final.drop(columns = [index_date_column, 'DateOfDeath'])
+                    final_df = final_df.drop(columns=[index_date_column, 'DateOfDeath'])
+                
+            # Check for duplicate PatientIDs
+            if len(final_df) > final_df['PatientID'].nunique():
+                duplicate_ids = final_df[final_df.duplicated(subset=['PatientID'], keep=False)]['PatientID'].unique()
+                logging.warning(f"Duplicate PatientIDs found: {duplicate_ids}")
 
-                # Check for duplicate PatientIDs
-                if len(df_final) > df_final['PatientID'].nunique():
-                    duplicate_ids = df_final[df_final.duplicated(subset = ['PatientID'], keep = False)]['PatientID'].unique()
-                    logging.warning(f"Duplicate PatientIDs found: {duplicate_ids}")
-
-                logging.info(f"Successfully processed Enhanced_Mortality_V2.csv file with final shape: {df_final.shape} and unique PatientIDs: {(df_final['PatientID'].nunique())}. There are {df_final['duration'].isna().sum()} out of {df_final['PatientID'].nunique()} patients with missing duration values")
-                self.mortality_df = df_final
-                return df_final
+            logging.info(f"Successfully processed Enhanced_Mortality_V2.csv file with final shape: {final_df.shape} and unique PatientIDs: {final_df['PatientID'].nunique()}. There are {final_df['duration'].isna().sum()} out of {final_df['PatientID'].nunique()} patients with missing duration values")
+            self.mortality_df = final_df
+            return final_df
 
         except Exception as e:
             logging.error(f"Error processing Enhanced_Mortality_V2.csv file: {e}")

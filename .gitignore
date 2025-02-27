@@ -10,3 +10,5 @@ venv/
 .DS_Store
 example/test_uro.ipynb
 example/Untitled.ipynb
+src/main.py
+src/test.py
