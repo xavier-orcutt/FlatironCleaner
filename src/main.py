@@ -1,5 +1,5 @@
 import pandas as pd
-from nsclc_processor import DataProcessorNSCLC
+from nsclc import DataProcessorNSCLC
 from merge_utils import merge_dataframes
 from IPython import embed     
 
