@@ -4,7 +4,7 @@
 data/
 
 # Virtual environment
-myenv/
+fcetl/
 
 # macOS system files
 .DS_Store
