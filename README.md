@@ -1,6 +1,6 @@
-# Flatiron Cancer ETL
+# FlatironCleaner
 
-`flatiron-cancer-etl` is a Python package designed to clean and harmonize Flatiron Health cancer data structured around a specified index date of interest (e.g., metastatic diagnosis date, or treatment initiation). The pipeline standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types. The goal is to help researchers maximize insights from the data, reduce time spent on data cleaning, and improve reproducibility. 
+`FlatironCleaner` is a Python package designed to clean and harmonize Flatiron Health cancer data structured around a specified index date of interest (e.g., metastatic diagnosis date, or treatment initiation). The pipeline standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types. The goal is to help researchers maximize insights from the data, reduce time spent on data cleaning, and improve reproducibility. 
 
 ## Overview
 
@@ -31,7 +31,7 @@ Coming soon:
 ## Usage 
 
 ```python
-from urothelial_processor import DataProcessorUrothelial
+from urothelial import DataProcessorUrothelial
 from merge_utils import merge_dataframes
 
 # Initialize the ETL pipeline
