@@ -1,6 +1,6 @@
 # FlatironCleaner
 
-`FlatironCleaner` is a Python package designed to clean and harmonize Flatiron Health cancer data structured around a specified index date of interest (e.g., metastatic diagnosis date, or treatment initiation). The package standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types. The goal is to help researchers maximize insights from the data, reduce time spent on data cleaning, and improve reproducibility. 
+`FlatironCleaner` is a Python package designed to clean and harmonize Flatiron Health cancer data structured around a specified index date of interest (e.g., metastatic diagnosis datw or treatment initiation). The package standardizes the process of transforming raw Flatiron CSV files into analysis-ready datasets for different cancer types. The goal is to help researchers maximize insights from the data, reduce time spent on data cleaning, and improve reproducibility. 
 
 ## Overview
 
@@ -35,7 +35,7 @@ Coming soon:
 from urothelial import DataProcessorUrothelial
 from merge_utils import merge_dataframes
 
-# Initialize the ETL pipeline
+# Initialize the processor
 processor = DataProcessorUrothelial()
 
 # Import dataframe with index date of interest for PatientIDs
@@ -54,6 +54,7 @@ cleaned_medication_df = processor.process_medications('path/to/your/MedicationAd
                                                       days_before=180,
                                                       days_after=0)
 
+# Merge dataframes 
 merged_data = merge_dataframes(cleaned_ecog_df, cleaned_medication_df)
 ```
 

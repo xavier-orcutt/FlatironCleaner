@@ -2132,7 +2132,7 @@ class DataProcessorUrothelial:
             raise ValueError('index_date_column not found in index_date_df')
         
         if not isinstance(days_before, int) or days_before < 0:
-                raise ValueError("days_before must be a non-negative integer")
+            raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
 
@@ -2602,9 +2602,9 @@ class DataProcessorUrothelial:
             - medicaid : Int64
                 binary indicator (0/1) for Medicaid coverage
             - commercial : Int64
-                binary indicator (0/1) for commercial insuarnce coverage
+                binary indicator (0/1) for commercial insurance coverage
             - other_insurance : Int64
-                binaroy indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, self pay, and workers compensation)
+                binary indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, self pay, and workers compensation)
 
         Notes
         -----
@@ -2615,19 +2615,21 @@ class DataProcessorUrothelial:
             - EndDate falls on or after the start of the time window 
 
         Insurance categorization logic:
-        1. Medicaid takes priority over Medicare for dual-eligible patients
-        2. Records are classified as Medicare if:
-        - PayerCategory is 'Medicare' OR
-        - PayerCategory is not 'Medicaid' AND IsMedicareAdv is 'Yes' AND IsManagedMedicaid is not 'Yes' AND IsMedicareMedicaid is not 'Yes' OR
-        - PayerCategory is not 'Medicaid' AND IsMedicareSupp is 'Yes' AND IsManagedMedicaid is not 'Yes' AND IsMedicareMedicaid is not 'Yes'
-        3. Records are classified as Medicaid if:
-        - PayerCategory is 'Medicaid' OR
-        - IsManagedMedicaid is 'Yes' OR
-        - IsMedicareMedicaid is 'Yes'
-        4. Records are classified as Commercial if PayerCategory is 'Commercial Health Plan' after above reclassification
-        5. All other records are classified as Other Insurance
+        1. Original payer categories are preserved but enhanced with hybrid categories:
+        - Commercial_Medicare: Commercial plans with Medicare Advantage or Supplement
+        - Commercial_Medicaid: Commercial plans with Managed Medicaid
+        - Commercial_Medicare_Medicaid: Commercial plans with both Medicare and Medicaid indicators
+        - Other_Medicare: Other government program or other payer plans with Medicare Advantage or Supplement
+        - Other_Medicaid: Other government program or other payer plans with Managed Medicaid
+        - Other_Medicare_Medicaid: Other government program or other payer plans with both Medicare and Medicaid indicators
+            
+        2. Final insurance indicators are set as follows:
+        - medicare: Set to 1 for PayerCategory = Medicare, Commercial_Medicare, Commercial_Medicare_Medicaid, Other_Medicare, or Other_Medicare_Medicaid
+        - medicaid: Set to 1 for PayerCategory = Medicaid, Commercial_Medicaid, Commercial_Medicare_Medicaid, Other_Medicaid, or Other_Medicare_Medicaid
+        - commercial: Set to 1 for PayerCategory = Commercial Health Plan, Commercial_Medicare, Commercial_Medicaid, or Commercial_Medicare_Medicaid
+        - other_insurance: Set to 1 for PayerCategory = Other Payer - Type Unknown, Other Government Program, Patient Assistance Program, Self Pay, 
+            Workers Compensation, Other_Medicare, Other_Medicaid, Other_Medicare_Medicaid
 
-        EndDate is missing for most patients
         All PatientIDs from index_date_df are included in the output
         Duplicate PatientIDs are logged as warnings but retained in output
         Results are stored in self.insurance_df attribute
@@ -2688,26 +2690,56 @@ class DataProcessorUrothelial:
             # Calculate days relative to index date for start 
             df['days_to_start'] = (df['StartDate'] - df[index_date_column]).dt.days
 
-            # Reclassify Commerical Health Plans that should be Medicare or Medicaid
-            # Identify Medicare Advantage plans
-            df['PayerCategory'] = np.where((df['PayerCategory'] != 'Medicaid') & (df['IsMedicareAdv'] == 'Yes') & (df['IsManagedMedicaid'] != 'Yes') & (df['IsMedicareMedicaid'] != 'Yes'),
-                                           'Medicare',
-                                           df['PayerCategory'])
+            # Reclassify Commerical Health Plans that have elements of Medicare, Medicaid, or Both
+            # Identify Commerical plus Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')) & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsManagedMedicaid'] != 'Yes'),
+                                            'Commercial_Medicare',
+                                            df['PayerCategory'])
 
-            # Identify Medicare Supplement plans incorrectly labeled as Commercial
-            df['PayerCategory'] = np.where((df['PayerCategory'] != 'Medicaid') & (df['IsMedicareSupp'] == 'Yes') & (df['IsManagedMedicaid'] != 'Yes') & (df['IsMedicareMedicaid'] != 'Yes'),
-                                           'Medicare',
-                                           df['PayerCategory'])
+            # Identify Commerical plus Managed Medicaid plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & (df['IsManagedMedicaid'] == 'Yes') & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsMedicareAdv'] != 'Yes') & (df['IsMedicareSupp'] != 'Yes'),
+                                            'Commercial_Medicaid',
+                                            df['PayerCategory'])
             
-            # Identify Managed Medicaid plans incorrectly labeled as Commercial
-            df['PayerCategory'] = np.where((df['IsManagedMedicaid'] == 'Yes'),
-                                           'Medicaid',
-                                           df['PayerCategory'])
+            # Identify Commercial plus MedicareMedicaid plan
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & (df['IsMedicareMedicaid'] == 'Yes'),
+                                            'Commercial_Medicare_Medicaid',
+                                            df['PayerCategory'])
+
+            # Identify Commercial plus Managed Medicaid and Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & (df['IsManagedMedicaid'] == 'Yes') & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')),
+                                            'Commercial_Medicare_Medicaid',
+                                            df['PayerCategory'])
             
-            # Identify Medicare-Medicaid dual eligible plans incorrectly labeled as Commercial
-            df['PayerCategory'] = np.where((df['IsMedicareMedicaid'] == 'Yes'),
-                                           'Medicaid',
-                                           df['PayerCategory'])
+
+            # Reclassify Other Health Plans that have elements of Medicare, Medicaid, or Both
+            # Identify Other plus Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')) & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsManagedMedicaid'] != 'Yes'),
+                                            'Other_Medicare',
+                                            df['PayerCategory'])
+
+            # Identify Other plus Managed Medicaid plans
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & (df['IsManagedMedicaid'] == 'Yes') & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsMedicareAdv'] != 'Yes') & (df['IsMedicareSupp'] != 'Yes'),
+                                            'Other_Medicaid',
+                                            df['PayerCategory'])
+            
+            # Identify Other plus MedicareMedicaid plan
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & (df['IsMedicareMedicaid'] == 'Yes'),
+                                            'Other_Medicare_Medicaid',
+                                            df['PayerCategory'])
+
+            # Identify Other plus Managed Medicaid and Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & (df['IsManagedMedicaid'] == 'Yes') & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')),
+                                            'Other_Medicare_Medicaid',
+                                            df['PayerCategory'])
+            
+            # Add hybrid insurance schems to mapping
+            self.INSURANCE_MAPPING['Commercial_Medicare'] = 'commercial_medicare'
+            self.INSURANCE_MAPPING['Commercial_Medicaid'] = 'commercial_medicaid'
+            self.INSURANCE_MAPPING['Commercial_Medicare_Medicaid'] = 'commercial_medicare_medicaid'
+            self.INSURANCE_MAPPING['Other_Medicare'] = 'other_medicare'
+            self.INSURANCE_MAPPING['Other_Medicaid'] = 'other_medicaid'
+            self.INSURANCE_MAPPING['Other_Medicare_Medicaid'] = 'other_medicare_medicaid'
 
             # Define window boundaries
             window_start = -days_before if days_before is not None else float('-inf')
@@ -2737,12 +2769,53 @@ class DataProcessorUrothelial:
                 .reset_index()
             )
 
+            # Adjust column indicators for commercial and other with medicare and medicaid plans
+            if 'commercial_medicare' in final_df.columns:
+                final_df.loc[final_df['commercial_medicare'] == 1, 'commercial'] = 1
+                final_df.loc[final_df['commercial_medicare'] == 1, 'medicare'] = 1
+            
+            if 'commercial_medicaid' in final_df.columns:
+                final_df.loc[final_df['commercial_medicaid'] == 1, 'commercial'] = 1
+                final_df.loc[final_df['commercial_medicaid'] == 1, 'medicaid'] = 1
+
+            if 'commercial_medicare_medicaid' in final_df.columns:
+                final_df.loc[final_df['commercial_medicare_medicaid'] == 1, 'commercial'] = 1
+                final_df.loc[final_df['commercial_medicare_medicaid'] == 1, 'medicare'] = 1
+                final_df.loc[final_df['commercial_medicare_medicaid'] == 1, 'medicaid'] = 1
+            
+            if 'other_medicare' in final_df.columns:
+                final_df.loc[final_df['other_medicare'] == 1, 'other_insurance'] = 1
+                final_df.loc[final_df['other_medicare'] == 1, 'medicare'] = 1
+            
+            if 'other_medicaid' in final_df.columns:
+                final_df.loc[final_df['other_medicaid'] == 1, 'other_insurance'] = 1
+                final_df.loc[final_df['other_medicaid'] == 1, 'medicaid'] = 1
+
+            if 'other_medicare_medicaid' in final_df.columns:
+                final_df.loc[final_df['other_medicare_medicaid'] == 1, 'other_insurance'] = 1
+                final_df.loc[final_df['other_medicare_medicaid'] == 1, 'medicare'] = 1
+                final_df.loc[final_df['other_medicare_medicaid'] == 1, 'medicaid'] = 1
+
             # Merger index_date_df to ensure all PatientIDs are included
             final_df = pd.merge(index_date_df[['PatientID']], final_df, on = 'PatientID', how = 'left')
             
-            insurance_columns = list(set(self.INSURANCE_MAPPING.values()))
-            for col in insurance_columns:
+            # Ensure all core insurance columns exist (excluding 'both' if it was dropped)
+            core_insurance_columns = ['medicare', 'medicaid', 'commercial', 'other_insurance']
+            for col in core_insurance_columns:
+                if col not in final_df.columns:
+                    final_df[col] = 0
                 final_df[col] = final_df[col].fillna(0).astype('Int64')
+
+            # Safely drop hybrid columns if they exist
+            hybrid_columns = ['commercial_medicare', 
+                            'commercial_medicaid', 
+                            'commercial_medicare_medicaid',
+                            'other_medicare', 
+                            'other_medicaid', 
+                            'other_medicare_medicaid']
+            
+            # Drop hybrid columns; errors = 'ignore' prevents error in the setting when column doesn't exist 
+            final_df = final_df.drop(columns=hybrid_columns, errors='ignore')
 
             # Check for duplicate PatientIDs
             if len(final_df) > final_df['PatientID'].nunique():
