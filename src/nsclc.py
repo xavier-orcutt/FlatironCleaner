@@ -464,6 +464,11 @@ class DataProcessorNSCLC:
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.enhanced_df
         """
+        # Input validation
+        if patient_ids is not None:
+            if not isinstance(patient_ids, list):
+                raise TypeError("patient_ids must be a list or None")
+
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Enhanced_AdvancedNSCLC.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
@@ -544,7 +549,7 @@ class DataProcessorNSCLC:
             - Ethnicity : category
                 ethnicity (Hispanic or Latino, Not Hispanic or Latino)
             - age : Int64
-                age at index date 
+                age at index date (index year - birth year)
             - region : category
                 US Census Bureau region
             - State : category
@@ -567,7 +572,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         try:
             df = pd.read_csv(file_path)
@@ -764,7 +769,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -993,7 +998,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -1173,7 +1178,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if not isinstance(weight_days_before, int) or weight_days_before < 0:
                 raise ValueError("weight_days_before must be a non-negative integer")
@@ -1481,7 +1486,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -1687,7 +1692,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if not isinstance(days_before, int) or days_before < 0:
                 raise ValueError("days_before must be a non-negative integer")
@@ -2058,7 +2063,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if not isinstance(days_before, int) or days_before < 0:
                 raise ValueError("days_before must be a non-negative integer")
@@ -2334,7 +2339,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -2570,7 +2575,7 @@ class DataProcessorNSCLC:
         if 'PatientID' not in index_date_df.columns:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
-            raise ValueError(f"Column '{index_date_column}' not found in index_date_df")
+            raise ValueError('index_date_column not found in index_date_df')
 
         try:
             df = pd.read_csv(file_path)

@@ -20,6 +20,7 @@ def merge_dataframes(*dataframes: pd.DataFrame,
     # Check if any dataframes are provided
     if not dataframes:
         logging.error("No dataframes provided for merging")
+        return None
 
     # Check for None values in the provided dataframes
     if any(df is None for df in dataframes):
