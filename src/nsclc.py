@@ -663,6 +663,11 @@ class DataProcessorNSCLC:
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.practice_df
         """
+        # Input validation
+        if patient_ids is not None:
+            if not isinstance(patient_ids, list):
+                raise TypeError("patient_ids must be a list or None")
+            
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Practice.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
@@ -681,6 +686,8 @@ class DataProcessorNSCLC:
 
             # Function to determine the practice type
             def get_practice_type(practice_types):
+                if len(practice_types) == 0:
+                    return 'UNKNOWN'
                 if len(practice_types) > 1:
                     return 'BOTH'
                 return practice_types[0]
