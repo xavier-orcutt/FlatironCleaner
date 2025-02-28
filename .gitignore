@@ -10,5 +10,5 @@ venv/
 .DS_Store
 example/test_uro.ipynb
 example/Untitled.ipynb
-src/main.py
-src/test.py
+flatiron_cleaner/test.py
+flatiron_cleaner/main.py
