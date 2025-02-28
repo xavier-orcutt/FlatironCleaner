@@ -61,8 +61,8 @@ help(DataProcessorUrothelial)
 ## Usage Example
 
 ```python
-from urothelial import DataProcessorUrothelial
-from merge_utils import merge_dataframes
+from flatiron_cleaner.urothelial import DataProcessorUrothelial
+from flatiron_cleaner.merge_utils import merge_dataframes
 
 # Initialize class
 processor = DataProcessorUrothelial()
