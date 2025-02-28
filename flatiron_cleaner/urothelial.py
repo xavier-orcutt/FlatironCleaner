@@ -486,23 +486,23 @@ class DataProcessorUrothelial:
             - SurgeryType_mod : category
                 consolidated surgery type
             - days_diagnosis_to_surgery : float
-                days from diagnosis to surgery
+                days from first diagnosis to surgery
             - DiseaseGrade : category
-                tumor grade
+                tumor grade at time of first diagnosis
             - NStage : category
-                lymph node staging
+                lymph node staging at time of first diagnosis
             - GroupStage_mod : category
-                consolidated overall staging (0-IV, Unknown)
+                consolidated overall staging (0-IV, Unknown) at time of first diagnosis
             - TStage_mod : category
-                consolidated tumor staging (T0-T4, Ta, Tis, TX, Unknown)
+                consolidated tumor staging (T0-T4, Ta, Tis, TX, Unknown) at time of first diagnosis
             - MStage_mod : category
-                consolidated metastasis staging (M0, M1, MX, Unknown)
+                consolidated metastasis staging (M0, M1, MX, Unknown) at time of first diagnosis
             - days_diagnosis_to_adv : float
-                days from diagnosis to advanced disease 
+                days from first diagnosis to advanced disease 
             - adv_diagnosis_year : category
                 year of advanced diagnosis 
             - days_diagnosis_to_surgery : float
-                days from diagnosis to surgery 
+                days from first diagnosis to surgery 
             
             Original staging and date columns retained if respective drop_* = False
 

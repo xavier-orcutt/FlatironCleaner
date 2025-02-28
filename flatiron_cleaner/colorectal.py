@@ -415,7 +415,7 @@ class DataProcessorColorectal:
         Parameters
         ----------
         file_path : str
-            Path to Enhanced_AdvancedNSCLC.csv file
+            Path to Enhanced_MetastaticCRC.csv file
         patient_ids : list, optional
             List of specific PatientIDs to process. If None, processes all patients
         drop_stage : bool, default=True
@@ -429,9 +429,9 @@ class DataProcessorColorectal:
             - PatientID : object
                 unique patient identifier
             - GroupStage_mod : categorical
-                consolidated overall staging (0-IV, Unknown)
+                consolidated overall staging (0-IV, Unknown) at time of first diagnosis
             - days_diagnosis_to_met : float
-                days from diagnosis to metastatic disease 
+                days from first diagnosis to metastatic disease 
             - adv_diagnosis_year : categorical
                 year of metastatic diagnosis 
             

@@ -451,9 +451,9 @@ class DataProcessorNSCLC:
             - SmokingStatus : categorical
                 smoking history
             - GroupStage_mod : categorical
-                consolidated overall staging (0-IV, Unknown)
+                consolidated overall staging (0-IV, Unknown) at time of first diagnosis
             - days_diagnosis_to_adv : float
-                days from diagnosis to advanced disease 
+                days from first diagnosis to advanced disease 
             - adv_diagnosis_year : categorical
                 year of advanced diagnosis 
             
