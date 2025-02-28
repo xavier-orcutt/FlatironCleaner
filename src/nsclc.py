@@ -1154,7 +1154,7 @@ class DataProcessorNSCLC:
             - fevers : Int64
                 binary indicator (0/1) for temperature >=38°C on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
             - hypoxemia : Int64
-                binary indicator (0/1) for SpO2 <=88% on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
+                binary indicator (0/1) for SpO2 <=90% on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
 
         Notes
         -----
@@ -1188,13 +1188,13 @@ class DataProcessorNSCLC:
             raise ValueError('index_date_column not found in index_date_df')
         
         if not isinstance(weight_days_before, int) or weight_days_before < 0:
-                raise ValueError("weight_days_before must be a non-negative integer")
+            raise ValueError("weight_days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
         if not isinstance(vital_summary_lookback, int) or vital_summary_lookback < 0:
             raise ValueError("vital_summary_lookback must be a non-negative integer")
         if not isinstance(abnormal_reading_threshold, int) or abnormal_reading_threshold < 1:
-                raise ValueError("abnormal_reading_threshold must be an integer ≥1")
+            raise ValueError("abnormal_reading_threshold must be an integer ≥1")
 
         try:
             df = pd.read_csv(file_path, low_memory = False)
@@ -1202,9 +1202,6 @@ class DataProcessorNSCLC:
 
             df['TestDate'] = pd.to_datetime(df['TestDate'])
             df['TestResult'] = pd.to_numeric(df['TestResult'], errors = 'coerce').astype('float')
-            
-            # Remove all rows with missing TestResult
-            df = df.query('TestResult.notna()')
 
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
 
@@ -1388,7 +1385,7 @@ class DataProcessorNSCLC:
                 .sort_values(['PatientID', 'TestDate'])
                 .groupby('PatientID')
                 .agg({
-                    'TestResultCleaned': lambda x: sum(x <= 88) >= abnormal_reading_threshold 
+                    'TestResultCleaned': lambda x: sum(x <= 90) >= abnormal_reading_threshold 
                 })
                 .reset_index()
                 .rename(columns={'TestResultCleaned': 'hypoxemia'})
