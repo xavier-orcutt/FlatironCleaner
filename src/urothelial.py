@@ -2101,20 +2101,21 @@ class DataProcessorUrothelial:
             - PatientID : ojbect
                 unique patient identifier
             - anticoagulant : Int64
-                binary indicator (0/1) for therapeutic anticoagulation (heparin IV with specific units, enoxaparin >40mg, dalteparin >5000u, fondaparinux >2.5mg, or any DOAC/warfarin) 
+                binary indicator (0/1) for therapeutic anticoagulation (heparin with specific units [e.g., "unit/kg/hr", "U/hr", "U/kg"], 
+                enoxaparin >40mg, dalteparin >5000u, fondaparinux >2.5mg, or any DOAC/warfarin) 
             - opioid : Int64
                 binary indicator (0/1) for oral, transdermal, sublingual, or enteral opioids
             - steroid : Int64
                 binary indicator (0/1) for oral steroids
             - antibiotic : Int64
                 binary indicator (0/1) for oral/IV antibiotics (excluding antifungals/antivirals)
-            - diabetic : Int64
+            - diabetic_med : Int64
                 binary indicator (0/1) for antihyperglycemic medication 
             - antidepressant : Int64
                 binary indicator (0/1) for antidepressant
-            - bone_therapy : Int64
+            - bone_therapy_agent : Int64
                 binary indicator (0/1) for bone-targeted therapy (e.g., bisphosphonates, denosumab)
-            - immunosuppressed : Int64
+            - immunosuppressant : Int64
                 binary indicator (0/1) for immunosuppressive medications
 
         Notes
@@ -2163,7 +2164,7 @@ class DataProcessorUrothelial:
                 (df['index_to_med'] <= days_after) & 
                 (df['index_to_med'] >= -days_before)].copy()
             
-            anticoagulated_IDs = pd.concat([
+            anticoagulant_IDs = pd.concat([
                 # Heparin patients
                 (
                     df_filtered
@@ -2200,8 +2201,7 @@ class DataProcessorUrothelial:
                     df_filtered
                     .query('CommonDrugName in ["warfarin", "apixaban", "rivaroxaban", "dabigatran etexilate", "edoxaban"]')
                     .PatientID
-                )
-                ]).unique()
+                )]).unique()
             
             opioid_IDs = (
                 df_filtered
@@ -2256,8 +2256,8 @@ class DataProcessorUrothelial:
                 
                 # Other classes
                 "daptomycin",  
-                "aztreonam",  
-                "fosfomycin",
+                "aztreonam",
+                "fosfomycin" 
             ]
 
             antibiotic_IDs = (
@@ -2286,7 +2286,7 @@ class DataProcessorUrothelial:
                 .PatientID
             ).unique()
 
-            immunosuppressed_IDs = (
+            immunosuppressant_IDs = (
                 df_filtered
                 .query('DrugCategory == "immunosuppressive"')
                 .PatientID
@@ -2294,14 +2294,14 @@ class DataProcessorUrothelial:
 
             # Create dictionary of medication categories and their respective IDs
             med_categories = {
-                'anticoagulant': anticoagulated_IDs,
+                'anticoagulant': anticoagulant_IDs,
                 'opioid': opioid_IDs,
                 'steroid': steroid_IDs,
                 'antibiotic': antibiotic_IDs,
-                'diabetic': diabetic_IDs,
+                'diabetic_med': diabetic_IDs,
                 'antidepressant': antidepressant_IDs,
-                'bone_therapy': bta_IDs,
-                'immunosuppressed': immunosuppressed_IDs
+                'bone_therapy_agent': bta_IDs,
+                'immunosuppressant': immunosuppressant_IDs
             }
 
             # Start with index_date_df to ensure all PatientIDs are included

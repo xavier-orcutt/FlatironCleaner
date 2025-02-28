@@ -35,10 +35,10 @@ Coming soon:
 from urothelial import DataProcessorUrothelial
 from merge_utils import merge_dataframes
 
-# Initialize the processor
+# Initialize class
 processor = DataProcessorUrothelial()
 
-# Import dataframe with index date of interest for PatientIDs
+# Import dataframe with index date of interest
 df = pd.read_csv('path/to/your/data')
 
 # Load and clean data
