@@ -207,7 +207,7 @@ class DataProcessorUrothelial:
         r'^5317|^5319|^5327|^5329|^5337|^5339|^5347|^5349': 'pud',
         
         # AIDS/HIV
-        r'^042|^043|^044': 'aids',
+        r'^042|^043|^044': 'aids_hiv',
         
         # Lymphoma
         r'^200|^201|^202|^2030|^2386': 'lymphoma',
@@ -234,7 +234,7 @@ class DataProcessorUrothelial:
         r'^2801|^2802|^2803|^2804|^2805|^2806|^2807|^2808|^2809|^281': 'deficiency_anemia',
         
         # Alcohol abuse
-        r'^2652|^2911|^2912|^2913|^2915|^2916|^2917|^2918|^2919|^3030|^3039|^3050|^3575|^4255|^5353|^5710|^5711|^5712|^5713|^980|^V113': 'alcohol',
+        r'^2652|^2911|^2912|^2913|^2915|^2916|^2917|^2918|^2919|^3030|^3039|^3050|^3575|^4255|^5353|^5710|^5711|^5712|^5713|^980|^V113': 'alcohol_abuse',
         
         # Drug abuse
         r'^292|^304|^3052|^3053|^3054|^3055|^3056|^3057|^3058|^3059|^V6542': 'drug_abuse',
@@ -296,7 +296,7 @@ class DataProcessorUrothelial:
         r'^K257|^K259|^K267|^K269|^K277|^K279|^K287|^K289': 'pud',
         
         # AIDS/HIV
-        r'^B20|^B21|^B22|^B24': 'aids',
+        r'^B20|^B21|^B22|^B24': 'aids_hiv',
         
         # Lymphoma
         r'^C81|^C82|^C83|^C84|^C85|^C88|^C96|^C900|^C902': 'lymphoma',
@@ -313,7 +313,7 @@ class DataProcessorUrothelial:
         # Weight loss
         r'^E40|^E41|^E42|^E43|^E44|^E45|^E46|^R634|^R64': 'weight_loss',
         
-        # Fluid and electrolyte Disorders
+        # Fluid and electrolyte disorders
         r'^E222|^E86|^E87': 'fluid',
         
         # Blood loss anemia
@@ -323,7 +323,7 @@ class DataProcessorUrothelial:
         r'^D508|^D509|^D51|^D52|^D53': 'deficiency_anemia',
         
         # Alcohol abuse
-        r'^F10|^E52|^G621|^I426|^K292|^K700|^K703|^K709|^T51|^Z502|^Z714|^Z721': 'alcohol',
+        r'^F10|^E52|^G621|^I426|^K292|^K700|^K703|^K709|^T51|^Z502|^Z714|^Z721': 'alcohol_abuse',
         
         # Drug abuse
         r'^F11|^F12|^F13|^F14|^F15|^F16|^F18|^F19|^Z715|^Z722': 'drug_abuse',
@@ -352,7 +352,7 @@ class DataProcessorUrothelial:
         'renal_failure': 5,
         'liver_disease': 11,
         'pud': 0,
-        'aids': 0,
+        'aids_hiv': 0,
         'lymphoma': 9,
         'rheumatic': 0,
         'coagulopathy': 3,
@@ -361,7 +361,7 @@ class DataProcessorUrothelial:
         'fluid': 5,
         'blood_loss_anemia': -2,
         'deficiency_anemia': -2,
-        'alcohol': 0,
+        'alcohol_abuse': 0,
         'drug_abuse': -7,
         'psychoses': 0,
         'depression': -3
@@ -2367,7 +2367,7 @@ class DataProcessorUrothelial:
             - renal_failure : binary indicator for renal failure
             - liver_disease : binary indicator for liver disease
             - PUD : binary indicator for peptic ulcer disease
-            - aids : binary indicator for AIDS/HIV
+            - aids_hiv : binary indicator for AIDS/HIV
             - lymphoma : binary indicator for lymphoma
             - rheumatic : binary indicator for rheumatoid arthritis/collagen vascular diseases
             - coagulopathy : binary indicator for coagulopathy
@@ -2376,7 +2376,7 @@ class DataProcessorUrothelial:
             - fluid : binary indicator for fluid and electrolyte disorders
             - blood_loss_anemia : binary indicator for blood loss anemia
             - deficiency_anemia : binary indicator for deficiency anemia
-            - alcohol : binary indicator for alcohol abuse
+            - alcohol_abuse : binary indicator for alcohol abuse
             - drug_abuse : binary indicator for drug abuse
             - psychoses : binary indicator for psychoses
             - depression : binary indicator for depression
@@ -2393,7 +2393,7 @@ class DataProcessorUrothelial:
 
         Notes
         -----
-        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details on ICD mapping to comorbidities. 
+        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details on ICD mapping to comorbidities. For ICD-9 codes, the Enhanced ICD-9-CM by Quan was used for mapping.
         See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data" by van Walraven et al for details on van Walraven score.
         Metastatic cancer and tumor categories are excluded in the Elxihauser comorbidities and van Walraven score as this is intended for an advanced cancer population
         All PatientIDs from index_date_df are included in the output and values will be set to 0 for patients with misisng Elixhauser comorbidities or metastasis sites, but NaN for van_walraven_score
