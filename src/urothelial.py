@@ -1232,7 +1232,7 @@ class DataProcessorUrothelial:
         days_after : int, optional
             Number of days after the index date to include. Must be >= 0. Default: 0
         days_before_further : int, optional
-            Number of days before index date to look for ECOG progression (0-1 to ≥2). Must be >= 0. Consdier
+            Number of days before index date to look for ECOG progression (0-1 to ≥2). Must be >= 0. Consider
             selecting a larger integer than days_before to capture meaningful clinical deterioration over time.
             Default: 180
             
