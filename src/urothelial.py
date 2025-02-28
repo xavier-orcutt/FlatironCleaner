@@ -2428,7 +2428,7 @@ class DataProcessorUrothelial:
                 index_date_df[['PatientID', index_date_column]],
                 on = 'PatientID',
                 how = 'left'
-                )
+            )
             logging.info(f"Successfully merged Diagnosis.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
             # Filter for desired window period for baseline labs
@@ -2483,7 +2483,7 @@ class DataProcessorUrothelial:
                 .reset_index()  
             )
 
-            all_columns_elix = ['PatientID'] + list(set(self.ICD_9_EXLIXHAUSER_MAPPING.values()) - {'Metastatic', 'Tumor'})
+            all_columns_elix = ['PatientID'] + list(self.ICD_9_EXLIXHAUSER_MAPPING.values())
             
             # Reindex both dataframes to have all columns, filling missing ones with 0
             df9_elix_aligned = df9_elix.reindex(columns = all_columns_elix, fill_value = 0)
@@ -2534,7 +2534,7 @@ class DataProcessorUrothelial:
                 .reset_index()
             )
 
-            all_columns_mets = ['PatientID'] + list(set(self.ICD_9_METS_MAPPING.values())) 
+            all_columns_mets = ['PatientID'] + list(self.ICD_9_METS_MAPPING.values())
             
             # Reindex both dataframes to have all columns, filling missing ones with 0
             df9_mets_aligned = df9_mets.reindex(columns = all_columns_mets, fill_value = 0)
