@@ -17,9 +17,9 @@ Coming soon.
 
 ### Cancer-Specific Processors
 
-Each cancer type has its own dedicated data processor class:
+The following cancers have their own dedicated data processor class:
 
-| Cancer Type | Processor Class | Status |
+| Cancer Type | Processor Name | Status |
 |-------------|-----------------|--------|
 | Advanced Urothelial Cancer | `DataProcessorUrothelial` | Available |
 | Advanced NSCLC | `DataProcessorNSCLC` | Available |
