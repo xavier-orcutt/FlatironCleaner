@@ -2340,12 +2340,17 @@ class DataProcessorColorectal:
 
         Notes
         -----
-        See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details on ICD mapping to comorbidities. For ICD-9 codes, the Enhanced ICD-9-CM by Quan was used for mapping.
-        See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data" by van Walraven et al for details on van Walraven score.
-        Metastatic cancer and tumor categories are excluded in the Elxihauser comorbidities and van Walraven score as this is intended for an advanced cancer population
-        All PatientIDs from index_date_df are included in the output and values will be set to 0 for patients with misisng Elixhauser comorbidities or metastasis sites, but NaN for van_walraven_score
-        Duplicate PatientIDs are logged as warnings but retained in output
-        Results are stored in self.diagnoses_df attribute
+        Mapping information: 
+        - See "Coding algorithms for defining comorbidities in ICD-9-CM and ICD-10 administrative data" by Quan et al for details on ICD mapping to comorbidities. 
+        For ICD-9 codes, the Enhanced ICD-9-CM by Quan was used for mapping.
+        - See "A modification of the Elixhauser comorbidity measures into a point system for hospital death using administrative data" by van Walraven et al for 
+        details on van Walraven score.
+        - Metastatic cancer and tumor categories are excluded in the Elxihauser comorbidities and van Walraven score as this is intended for an advanced cancer population
+        
+        Output handling: 
+        - All PatientIDs from index_date_df are included in the output and values will be set to 0 for patients with misisng Elixhauser comorbidities or metastasis sites, but NaN for missing van_walraven_score
+        - Duplicate PatientIDs are logged as warnings but retained in output
+        - Results are stored in self.diagnoses_df attribute
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
