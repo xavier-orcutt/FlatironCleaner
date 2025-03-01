@@ -358,55 +358,55 @@ class DataProcessorNSCLC:
     }
 
     ICD_9_METS_MAPPING = {
-        # Lymph Nodes
-        r'^196': 'lymph_mets',
+        # Lymph nodes
+        r'^196': 'lymph_met',
         
-        # Respiratory
-        r'^1970|^1971|^1972|^1973': 'resp_mets',
+        # Thoracic
+        r'^1970|^1971|^1972|^1973': 'thoracic_met',
 
         # Liver
-        r'^1977': 'liver_mets',
+        r'^1977': 'liver_met',
         
         # Bone
-        r'^1985': 'bone_mets',
+        r'^1985': 'bone_met',
         
         # Brain/CNS
-        r'^1983|^1984': 'brain_mets',
+        r'^1983|^1984': 'brain_met',
         
         # Adrenal
-        r'^1987': 'adrenal_mets',
+        r'^1987': 'adrenal_met',
         
         # Other visceral metastases
-        r'^1974|^1975|^1976|^1978': 'other_viscera_mets',
+        r'^1974|^1975|^1976|^1978': 'other_viscera_met',
         
-        # Other Sites
-        r'^1980|^1981|^1982|^1986|^1988|^199': 'other_mets'
+        # Other sites
+        r'^1980|^1981|^1982|^1986|^1988|^199': 'other_met'
     }
 
     ICD_10_METS_MAPPING = {
-        # Lymph Nodes
-        r'^C77': 'lymph_mets',
+        # Lymph nodes
+        r'^C77': 'lymph_met',
 
-        # Respiratory
-        r'^C780|^C781|^C782|^C783': 'resp_mets',
+        # Thoracic
+        r'^C780|^C781|^C782|^C783': 'thoracic_met',
 
         # Liver
-        r'^C787': 'liver_mets',
+        r'^C787': 'liver_met',
 
         # Bone
-        r'^C795': 'bone_mets',
+        r'^C795': 'bone_met',
 
         # Brain/CNS
-        r'^C793|^C794': 'brain_mets',
+        r'^C793|^C794': 'brain_met',
 
         # Adrenal
-        r'^C797': 'adrenal_mets',
+        r'^C797': 'adrenal_met',
 
         # Other viscera
-        r'^C784|^C785|^C786|^C788': 'other_viscera_mets',
+        r'^C784|^C785|^C786|^C788': 'other_viscera_met',
 
-        # Other Sites
-        r'^C790|^C791|^C792|^C796|^C798|^C799|^C80': 'other_mets'
+        # Other sites
+        r'^C790|^C791|^C792|^C796|^C798|^C799|^C80': 'other_met'
     }
 
     def __init__(self):
@@ -2421,14 +2421,14 @@ class DataProcessorNSCLC:
             - psychoses : binary indicator for psychoses
             - depression : binary indicator for depression
             - van_walraven_score : weighted composite of the binary Elixhauser comorbidities
-            - lymph_mets : binary indicator for lymph node metastases
-            - resp_mets : binary indicator for respiratory metastases
-            - liver_mets : binary indicator for liver metastases
-            - bone_mets : binary indicator for bone metastases
-            - brain_mets : binary indicator for brain/CNS metastases
-            - adrenal_mets : binary indicator for adrenal metastases
-            - other_viscera_mets : binary indicator for other visceral metastases
-            - other_mets : binary indicator for other sites of metastases  
+            - lymph_met : binary indicator for lymph node metastasis
+            - thoracic_met : binary indicator for thoracic metastasis (eg., lung, pleura, mediastinum, or other respiratory)
+            - liver_met : binary indicator for liver metastasis
+            - bone_met : binary indicator for bone metastasis
+            - brain_met : binary indicator for brain/CNS metastasis
+            - adrenal_met : binary indicator for adrenal metastasis
+            - other_viscera_met : binary indicator for other visceral metastasis liver, adrenal, and peritoneum
+            - other_met : binary indicator for other sites of metastasis  
 
         Notes
         -----
@@ -2475,10 +2475,9 @@ class DataProcessorNSCLC:
             )
             logging.info(f"Successfully merged Diagnosis.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
 
-            # Filter for desired window period for baseline labs
             df['index_to_diagnosis'] = (df['DiagnosisDate'] - df[index_date_column]).dt.days
             
-            # Select biomarkers that fall within desired before and after index date
+            # Select ICD codes that fall within desired before and after index date
             if days_before is None:
                 # Only filter for days after
                 df_filtered = df[df['index_to_diagnosis'] <= days_after].copy()

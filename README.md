@@ -24,8 +24,8 @@ Each cancer type has its own dedicated data processor class:
 | Advanced Urothelial Cancer | `DataProcessorUrothelial` | Available |
 | Advanced NSCLC | `DataProcessorNSCLC` | Available |
 | Metastatic Colorectal Cancer | `DataProcessorColorectal` | Available |
-| Metastatic Breast Cancer | `DataProcessorBreast` | In Development |
-| Metastatic Prostate Cancer | `DataProcessorProstate` | Coming Soon |
+| Metastatic Breast Cancer | `DataProcessorBreast` | Available |
+| Metastatic Prostate Cancer | `DataProcessorProstate` | In Development |
 
 ### General Processor (Coming Soon)
 
