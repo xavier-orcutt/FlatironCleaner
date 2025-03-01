@@ -1749,21 +1749,25 @@ class DataProcessorUrothelial:
 
         Notes
         -----
-        Missing ResultDate is imputed with TestDate
+        Data cleaning and processing: 
+        - Imputation strategy for lab datese: missing ResultDate is imputed with TestDate
+        - Imputation strategy for lab values:
+            - For each lab, missing TestResultCleaned values are imputed from TestResult after removing flags (L, H, <, >)
+            - Values outside physiological ranges for each lab are filtered out
+        -Unit conversion corrections:
+            - Hemoglobin: Values in g/uL are divided by 100,000 to convert to g/dL
+            - WBC/Platelet: Values in 10*3/L are multiplied by 1,000,000; values in /mm3 or 10*3/mL are multiplied by 1,000
+            - Creatinine/BUN/Calcium: Values in mg/L are multiplied by 10 to convert to mg/dL
+            - Albumin: Values in mg/dL are multiplied by 1,000 to convert to g/L; values 1-6 are assumed to be g/dL and multiplied by 10
+        - Lab value selection
+            - Baseline lab value closest to index date is selected by minimum absolute day difference within window period of 
+            (index_date - days_before) to (index_date + days_after)
+            - Summary lab values are calculated within window period of (index_date - summary_lookback) to (index_date + days_after)
         
-        Imputation strategy for lab values:
-        - For each lab, missing TestResultCleaned values are imputed from TestResult after removing flags (L, H, <, >)
-        - Values outside physiological ranges for each lab are filtered out
-
-        Unit conversion corrections:
-        - Hemoglobin: Values in g/uL are divided by 100,000 to convert to g/dL
-        - WBC/Platelet: Values in 10*3/L are multiplied by 1,000,000; values in /mm3 or 10*3/mL are multiplied by 1,000
-        - Creatinine/BUN/Calcium: Values in mg/L are multiplied by 10 to convert to mg/dL
-        - Albumin: Values in mg/dL are multiplied by 100 to convert to g/L; values 1-6 are assumed to be g/dL and multiplied by 10
-        
-        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without lab values 
-        Duplicate PatientIDs are logged as warnings but retained in output 
-        Results are stored in self.labs_df attribute
+        Output handling: 
+        - All PatientIDs from index_date_df are included in the output and values are NaN for patients without lab values 
+        - Duplicate PatientIDs are logged as warnings but retained in output 
+        - Results are stored in self.labs_df attribute
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
@@ -2631,6 +2635,7 @@ class DataProcessorUrothelial:
         - Records with StartDate or EndDate before 1900-01-01 are excluded to prevent integer overflow issues
         when calculating date differences. This is a data quality measure as extremely old dates are likely
         erroneous and can cause numerical problems in pandas datetime calculations.
+        - About 5% of the full dataset has misisng StartDate and EndDate.
 
         Insurance categorization logic:
         1. Original payer categories are preserved but enhanced with hybrid categories:

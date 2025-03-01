@@ -29,14 +29,14 @@ Each cancer type has its own dedicated data processor class:
 
 ### General Processor (Coming Soon)
 
-For cancer types without a dedicated processor, I have provide a general processor:
+For cancer types without a dedicated processor, I've provide a general processor:
 
 ```python
 from flatiron_cleaner.general import DataProcessorGeneral
 
 ```
 
-The general processor includes only standard methods and tends to makes fewer assumptions about the data.
+The general processor includes only standard methods.
 
 ## Processing Methods
 
@@ -58,7 +58,7 @@ The following methods are available across all processor classes, including the 
 
 ### Cancer-Specific Methods
 
-Cancer-specific classes contain additional methods (e.g., `process_enhanced()` and `process_biomarkers()`). For a complete list of available methods for each cancer type, refer to the class documentation or use Python's built-in help functionality:
+Cancer-specific classes contain additional methods (e.g., `process_enhanced()` and `process_biomarkers()`). For a complete list of available methods for each cancer type, refer to the class documentation in the source code or use Python's built-in help functionality:
 
 ```python
 from flatiron_cleaner.urothelial import DataProcessorUrothelial
