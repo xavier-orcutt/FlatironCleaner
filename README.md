@@ -29,20 +29,20 @@ Each cancer type has its own dedicated data processor class:
 
 ### General Processor (Coming Soon)
 
-For cancer types without a dedicated processor, we provide a general processor that implements standard cleaning methods:
+For cancer types without a dedicated processor, I have provide a general processor:
 
 ```python
 from flatiron_cleaner.general import DataProcessorGeneral
 
 ```
 
-The general processor includes all standard methods but makes fewer assumptions.
+The general processor includes only standard methods and tends to makes fewer assumptions about the data.
 
 ## Processing Methods
 
 ### Standard Methods
 
-The following methods are available across all processor classes:
+The following methods are available across all processor classes, including the general processor:
 
 | Method | Description | File Processed |
 |--------|-------------|----------------|

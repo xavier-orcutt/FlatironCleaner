@@ -2626,6 +2626,11 @@ class DataProcessorUrothelial:
         2. Either:
             - EndDate is missing (considered still active) OR
             - EndDate falls on or after the start of the time window 
+        
+        Date filtering:
+        - Records with StartDate or EndDate before 1900-01-01 are excluded to prevent integer overflow issues
+        when calculating date differences. This is a data quality measure as extremely old dates are likely
+        erroneous and can cause numerical problems in pandas datetime calculations.
 
         Insurance categorization logic:
         1. Original payer categories are preserved but enhanced with hybrid categories:
@@ -2643,9 +2648,10 @@ class DataProcessorUrothelial:
         - other_insurance: Set to 1 for PayerCategory = Other Payer - Type Unknown, Other Government Program, Patient Assistance Program, Self Pay, 
             Workers Compensation, Other_Medicare, Other_Medicaid, Other_Medicare_Medicaid
 
-        All PatientIDs from index_date_df are included in the output
-        Duplicate PatientIDs are logged as warnings but retained in output
-        Results are stored in self.insurance_df attribute
+        Output handling:     
+        - All PatientIDs from index_date_df are included in the output and value is set to 0 for those without insurance type
+        - Duplicate PatientIDs are logged as warnings but retained in output
+        - Results are stored in self.insurance_df attribute
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
@@ -2687,6 +2693,8 @@ class DataProcessorUrothelial:
 
             # Filter for StartDate after 1900-01-01
             df = df[df['StartDate'] > pd.Timestamp('1900-01-01')]
+            # Filter for Enddate missing or after 1900-01-01
+            df = df[(df['EndDate'].isna()) | (df['EndDate'] > pd.Timestamp('1900-01-01'))]
 
             index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
 
@@ -2812,7 +2820,7 @@ class DataProcessorUrothelial:
             # Merger index_date_df to ensure all PatientIDs are included
             final_df = pd.merge(index_date_df[['PatientID']], final_df, on = 'PatientID', how = 'left')
             
-            # Ensure all core insurance columns exist (excluding 'both' if it was dropped)
+            # Ensure all core insurance columns exist 
             core_insurance_columns = ['medicare', 'medicaid', 'commercial', 'other_insurance']
             for col in core_insurance_columns:
                 if col not in final_df.columns:
@@ -2821,11 +2829,11 @@ class DataProcessorUrothelial:
 
             # Safely drop hybrid columns if they exist
             hybrid_columns = ['commercial_medicare', 
-                            'commercial_medicaid', 
-                            'commercial_medicare_medicaid',
-                            'other_medicare', 
-                            'other_medicaid', 
-                            'other_medicare_medicaid']
+                              'commercial_medicaid', 
+                              'commercial_medicare_medicaid',
+                              'other_medicare', 
+                              'other_medicaid', 
+                              'other_medicare_medicaid']
             
             # Drop hybrid columns; errors = 'ignore' prevents error in the setting when column doesn't exist 
             final_df = final_df.drop(columns=hybrid_columns, errors='ignore')
