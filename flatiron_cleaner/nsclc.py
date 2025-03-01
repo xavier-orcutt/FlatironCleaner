@@ -1772,7 +1772,7 @@ class DataProcessorNSCLC:
         Notes
         -----
         Data cleaning and processing: 
-        - Imputation strategy for lab datese: missing ResultDate is imputed with TestDate
+        - Imputation strategy for lab dates: missing ResultDate is imputed with TestDate
         - Imputation strategy for lab values:
             - For each lab, missing TestResultCleaned values are imputed from TestResult after removing flags (L, H, <, >)
             - Values outside physiological ranges for each lab are filtered out
@@ -2159,9 +2159,10 @@ class DataProcessorNSCLC:
 
         Notes
         -----
-        All PatientIDs from index_date_df are included in the output
-        Duplicate PatientIDs are logged as warnings but retained in output 
-        Results are stored in self.medicines_df attribute
+        Output handling: 
+        - All PatientIDs from index_date_df are included in the output
+        - Duplicate PatientIDs are logged as warnings but retained in output 
+        - Results are stored in self.medicines_df attribute
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
