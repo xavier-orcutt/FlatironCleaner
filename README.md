@@ -48,7 +48,7 @@ The following methods are available across all processor classes:
 
 ### Cancer-Specific Methods
 
-Some processor classes contain additional methods specific to certain cancer types. For a complete list of available methods for each cancer type, refer to the class documentation or use Python's built-in help functionality:
+Some processor classes contain additional methods. For a complete list of available methods for each cancer type, refer to the class documentation or use Python's built-in help functionality:
 
 ```python
 from flatiron_cleaner.urothelial import DataProcessorUrothelial

@@ -439,8 +439,9 @@ class DataProcessorColorectal:
 
         Notes
         -----
-        Duplicate PatientIDs are logged as warnings if found but retained in output
-        Processed DataFrame is stored in self.enhanced_df
+        Output handling: 
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.enhanced_df
         """
         # Input validation
         if patient_ids is not None:
@@ -532,14 +533,17 @@ class DataProcessorColorectal:
             
         Notes
         -----
-        Imputation for Race and Ethnicity:
+        Data cleaning and processing:
+        - Imputation for Race and Ethnicity:
             - If Race='Hispanic or Latino', Race value is replaced with NaN
             - If Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
             - Otherwise, missing Race and Ethnicity values remain unchanged
-        Ages calculated as <18 or >120 are logged as warning if found, but not removed
-        Missing States and Puerto Rico are imputed as unknown during the mapping to regions
-        Duplicate PatientIDs are logged as warnings if found but retained in output
-        Processed DataFrame is stored in self.demographics_df
+        - Ages calculated as <18 or >120 are logged as warning if found, but not removed
+        - Missing States and Puerto Rico are imputed as unknown during the mapping to regions
+        
+        Output handling:
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.demographics_df
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
@@ -634,9 +638,10 @@ class DataProcessorColorectal:
 
         Notes
         -----
-        PracticeID and PrimaryPhysicianID are removed 
-        Duplicate PatientIDs are logged as warnings if found but retained in output
-        Processed DataFrame is stored in self.practice_df
+        Output handling: 
+        - PracticeID and PrimaryPhysicianID are removed 
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.practice_df
         """
         # Input validation
         if patient_ids is not None:
@@ -723,23 +728,25 @@ class DataProcessorColorectal:
 
         Notes
         ------
-        For each biomarker, status is classified as:
+        Biomarker cleaning and processing: 
+        - For each biomarker, status is classified as:
             - 'positive' if any test result is positive (ever-positive)
             - 'negative' if any test is negative without positives (only-negative) 
             - 'unknown' if all results are indeterminate
-        MMR/MSI classification:
+        - MMR/MSI classification:
             - 'positive' includes: 'Loss of MMR protein expression (MMR protein deficiency found)' and 'MSI-H'
             - 'negative' includes: 'Normal MMR protein expression', 'MSS', and 'MSI-L'
             - MSI-L is classified as negative because these patients typically do not receive checkpoint 
               inhibitors like MSI-H patients and are clinically managed more similarly to MSS patients
         
-        Missing biomarker data handling:
+        - Missing biomarker data handling:
             - All PatientIDs from index_date_df are included in the output
             - Patients without any biomarker tests will have NaN values for all biomarker columns
             - Missing ResultDate is imputed with SpecimenReceivedDate
 
-        Duplicate PatientIDs are logged as warnings if found but retained in output
-        Processed DataFrame is stored in self.biomarkers_df
+        Output handling:     
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.biomarkers_df
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
@@ -868,10 +875,7 @@ class DataProcessorColorectal:
             that represents the patient's status at that time point
         2. A larger lookback window to detect clinically significant ECOG progression,
             specifically looking for patients whose condition worsened from ECOG 0-1 to ≥2
-        
-        This dual-window approach allows for both accurate point-in-time assessment and
-        detection of deteriorating performance status over a clinically meaningful period.
-        
+
         Parameters
         ----------
         file_path : str
@@ -901,18 +905,15 @@ class DataProcessorColorectal:
 
         Notes
         ------
-        The function selects the most clinically relevant ECOG score using the following priority rules:
-        1. First priority: Temporal proximity to the index date (within the specified window)
-           - Calculates absolute days between each ECOG date and the index date
-           - Selects ECOG score(s) with the minimum absolute difference in days
-        2. Second priority (for equidistant measurements): Higher ECOG score
-           - When multiple ECOG scores are equidistant to the index date, the higher score is selected
-           - This prioritization reflects a clinical approach that favors capturing worse 
-             performance status when multiple assessments exist at the same temporal distance
-
-        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without ECOG values
-        Duplicate PatientIDs are logged as warnings if found but retained in output
-        Processed DataFrame is stored in self.ecog_df
+        Data cleaning and processing: 
+        - The function selects the most clinically relevant ECOG score using the following priority rules:
+            1. ECOG closest to index date is selected by minimum absolute day difference
+            2. For equidistant measurements, higher ECOG score is selected
+        
+        Output handling: 
+        - All PatientIDs from index_date_df are included in the output and values will be NaN for patients without ECOG values
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.ecog_df
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
@@ -1025,8 +1026,7 @@ class DataProcessorColorectal:
                        abnormal_reading_threshold: int = 2) -> pd.DataFrame:
         """
         Processes Vitals.csv to determine patient BMI, weight, change in weight, and vital sign abnormalities
-        within a specified time window relative to an index date. Two different time windows are used for distinct 
-        clinical purposes:
+        within a specified time window relative to an index date. Two different time windows are used:
         
         1. A smaller window near the index date to find weight and BMI at that time point
         2. A larger lookback window to detect clinically significant vital sign abnormalities 
@@ -1063,17 +1063,22 @@ class DataProcessorColorectal:
             - percent_change_weight : float
                 percentage change in weight over period from (index_date - vital_summary_lookback) to (index_date + days_after)
             - hypotension : Int64
-                binary indicator (0/1) for systolic blood pressure <90 mmHg on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
+                binary indicator (0/1) for systolic blood pressure <90 mmHg on ≥{abnormal_reading_threshold} separate readings 
+                between (index_date - vital_summary_lookback) and (index_date + days_after)
             - tachycardia : Int64
-                binary indicator (0/1) for heart rate >100 bpm on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
+                binary indicator (0/1) for heart rate >100 bpm on ≥{abnormal_reading_threshold} separate readings 
+                between (index_date - vital_summary_lookback) and (index_date + days_after)
             - fevers : Int64
-                binary indicator (0/1) for temperature >=38°C on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
+                binary indicator (0/1) for temperature >=38°C on ≥{abnormal_reading_threshold} separate readings 
+                between (index_date - vital_summary_lookback) and (index_date + days_after)
             - hypoxemia : Int64
-                binary indicator (0/1) for SpO2 <=90% on ≥{abnormal_reading_threshold} separate readings between (index_date - vital_summary_lookback) and (index_date + days_after)
+                binary indicator (0/1) for SpO2 <90% on ≥{abnormal_reading_threshold} separate readings 
+                between (index_date - vital_summary_lookback) and (index_date + days_after)
 
         Notes
         -----
-        Missing TestResultCleaned values are imputed using TestResult. For those where units are ambiguous, unit conversion is based on thresholds:
+        Data cleaning and processing: 
+        - Missing TestResultCleaned values are imputed using TestResult. For those where units are ambiguous, unit conversion is based on thresholds:
             - For weight: 
                 Values >140 are presumed to be in pounds and converted to kg (divided by 2.2046)
                 Values <70 are presumed to be already in kg and kept as is
@@ -1085,14 +1090,16 @@ class DataProcessorColorectal:
             - For temperature: 
                 Values >45 are presumed to be in Fahrenheit and converted to Celsius using (F-32)*5/9
                 Values ≤45 are presumed to be already in Celsius
+        - Weight closest to index date is selected by minimum absolute day difference
+        - BMI is calculated using closest weight to index within specified window and mean height over patient's entire data range (weight(kg)/height(m)²)
+        - BMI calucalted as <13 are considered implausible and removed
+        - Percent change in weight is calculated as ((end_weight - start_weight) / start_weight) * 100
+        - TestDate rather than ResultDate is used since TestDate is always populated and, for vital signs, the measurement date (TestDate) and result date (ResultDate) should be identical since vitals are recorded in real-time
         
-        BMI is calculated using weight closest to index date within specified window while height outside the specified window may be used. The equation used: weight (kg)/height (m)^2
-        BMI calucalted as <13 are considered implausible and removed
-        Percent change in weight is calculated as ((end_weight - start_weight) / start_weight) * 100
-        TestDate rather than ResultDate is used since TestDate is always populated and, for vital signs, the measurement date (TestDate) and result date (ResultDate) should be identical since vitals are recorded in real-time
-        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without weight, BMI, or percent_change_weight, but set to 0 for hypotension, tachycardia, and fevers
-        Duplicate PatientIDs are logged as warnings but retained in output
-        Results are stored in self.vitals_df attribute
+        Output handling: 
+        - All PatientIDs from index_date_df are included in the output and values will be NaN for patients without weight, BMI, or percent_change_weight, but set to 0 for hypotension, tachycardia, and fevers
+        - Duplicate PatientIDs are logged as warnings but retained in output
+        - Results are stored in self.vitals_df attribute
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
@@ -1300,7 +1307,7 @@ class DataProcessorColorectal:
                 .sort_values(['PatientID', 'TestDate'])
                 .groupby('PatientID')
                 .agg({
-                    'TestResultCleaned': lambda x: sum(x <= 90) >= abnormal_reading_threshold 
+                    'TestResultCleaned': lambda x: sum(x < 90) >= abnormal_reading_threshold 
                 })
                 .reset_index()
                 .rename(columns={'TestResultCleaned': 'hypoxemia'})
