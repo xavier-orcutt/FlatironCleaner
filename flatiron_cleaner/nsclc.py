@@ -551,7 +551,7 @@ class DataProcessorNSCLC:
             - age : Int64
                 age at index date (index year - birth year)
             - region : category
-                US Census Bureau region
+                Maps all 50 states, plus DC and Puerto Rico (PR), to a US Census Bureau region
             - State : category
                 US state (if drop_state=False)
             
@@ -562,7 +562,7 @@ class DataProcessorNSCLC:
             - If Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
             - Otherwise, missing Race and Ethnicity values remain unchanged
         Ages calculated as <18 or >120 are logged as warning if found, but not removed
-        Missing States are imputed as unknown during the mapping to regions
+        Missing States and Puerto Rico are imputed as unknown during the mapping to regions
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.demographics_df
         """
