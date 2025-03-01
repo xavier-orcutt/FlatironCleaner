@@ -737,7 +737,7 @@ class DataProcessorColorectal:
             - All PatientIDs from index_date_df are included in the output
             - Patients without any biomarker tests will have NaN values for all biomarker columns
             - Missing ResultDate is imputed with SpecimenReceivedDate
-            
+
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.biomarkers_df
         """
@@ -871,11 +871,7 @@ class DataProcessorColorectal:
         
         This dual-window approach allows for both accurate point-in-time assessment and
         detection of deteriorating performance status over a clinically meaningful period.
-
-        For each patient, finds:
-        1. The ECOG score closest to index date (selecting higher score in case of ties)
-        2. Whether ECOG newly increased to ≥2 from 0-1 in the lookback period
-
+        
         Parameters
         ----------
         file_path : str
@@ -899,13 +895,21 @@ class DataProcessorColorectal:
             - PatientID : object
                 unique patient identifier
             - ecog_index : category, ordered 
-                ECOG score (0-5) closest to index date
+                ECOG score (0-4) closest to index date
             - ecog_newly_gte2 : Int64
-                binary indicator (0/1) for ECOG increased from 0-1 to ≥2 in 6 months before index
+                binary indicator (0/1) for ECOG increased from 0-1 to ≥2 in larger lookback window 
 
         Notes
         ------
-        When multiple ECOG scores are equidistant to index date, the higher score is selected
+        The function selects the most clinically relevant ECOG score using the following priority rules:
+        1. First priority: Temporal proximity to the index date (within the specified window)
+           - Calculates absolute days between each ECOG date and the index date
+           - Selects ECOG score(s) with the minimum absolute difference in days
+        2. Second priority (for equidistant measurements): Higher ECOG score
+           - When multiple ECOG scores are equidistant to the index date, the higher score is selected
+           - This prioritization reflects a clinical approach that favors capturing worse 
+             performance status when multiple assessments exist at the same temporal distance
+
         All PatientIDs from index_date_df are included in the output and values will be NaN for patients without ECOG values
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.ecog_df
@@ -963,7 +967,7 @@ class DataProcessorColorectal:
                 [['PatientID', 'EcogValue']]
                 .rename(columns = {'EcogValue': 'ecog_index'})
                 .assign(
-                    ecog_index = lambda x: x['ecog_index'].astype(pd.CategoricalDtype(categories = [0, 1, 2, 3, 4, 5], ordered = True))
+                    ecog_index = lambda x: x['ecog_index'].astype(pd.CategoricalDtype(categories = [0, 1, 2, 3, 4], ordered = True))
                     )
             )
             
@@ -995,7 +999,7 @@ class DataProcessorColorectal:
             final_df = pd.merge(final_df, ecog_newly_gte2_df, on = 'PatientID', how = 'left')
             
             # Assign datatypes 
-            final_df['ecog_index'] = final_df['ecog_index'].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4, 5], ordered=True))
+            final_df['ecog_index'] = final_df['ecog_index'].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4], ordered=True))
             final_df['ecog_newly_gte2'] = final_df['ecog_newly_gte2'].astype('Int64')
 
             # Check for duplicate PatientIDs
