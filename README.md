@@ -5,7 +5,6 @@
 ## Features
 
 - **Cancer-specific processors** for different cancer types
-- **Standardized cleaning methods** aligned with clinical research needs
 - **Flexible date windowing** to analyze data relative to an index date
 - **Consistent data harmonization** across Flatiron file types
 - **Reproducible data preparation** workflows
@@ -15,6 +14,8 @@
 Coming soon. 
 
 ## Available Processors
+
+### Cancer-Specific Processors
 
 Each cancer type has its own dedicated data processor class:
 
@@ -26,6 +27,17 @@ Each cancer type has its own dedicated data processor class:
 | Metastatic Breast Cancer | `DataProcessorBreast` | In Development |
 | Metastatic Prostate Cancer | `DataProcessorProstate` | Coming Soon |
 
+### General Processor (Coming Soon)
+
+For cancer types without a dedicated processor, we provide a general processor that implements standard cleaning methods:
+
+```python
+from flatiron_cleaner.general import DataProcessorGeneral
+
+```
+
+The general processor includes all standard methods but makes fewer assumptions.
+
 ## Processing Methods
 
 ### Standard Methods
@@ -34,7 +46,6 @@ The following methods are available across all processor classes:
 
 | Method | Description | File Processed |
 |--------|-------------|----------------|
-| `process_enhanced()` | Cleans cancer-specific enhanced data | Enhanced_{cancer}.csv |
 | `process_demographics()` | Processes patient demographic information | Demographics.csv |
 | `process_mortality()` | Handles mortality data | Enhanced_Mortality_V2.csv |
 | `process_ecog()` | Processes performance status data | ECOG.csv |
@@ -42,13 +53,12 @@ The following methods are available across all processor classes:
 | `process_diagnosis()` | Processes diagnosis information | Diagnosis.csv |
 | `process_labs()` | Handles laboratory test results | Lab.csv |
 | `process_vitals()` | Processes vital signs data | Vitals.csv |
-| `process_biomarkers()` | Cleans cancer-specific biomarker data | {cancer}_Biomarkers.csv |
 | `process_insurance()` | Processes insurance information | Insurance.csv |
 | `process_practice()` | Handles practice/facility data | Practice.csv |
 
 ### Cancer-Specific Methods
 
-Some processor classes contain additional methods. For a complete list of available methods for each cancer type, refer to the class documentation or use Python's built-in help functionality:
+Cancer-specific classes contain additional methods (e.g., `process_enhanced()` and `process_biomarkers()`). For a complete list of available methods for each cancer type, refer to the class documentation or use Python's built-in help functionality:
 
 ```python
 from flatiron_cleaner.urothelial import DataProcessorUrothelial
@@ -67,7 +77,7 @@ from flatiron_cleaner.merge_utils import merge_dataframes
 # Initialize class
 processor = DataProcessorUrothelial()
 
-# Import dataframe with index date of interest
+# Import dataframe with PatientIDs and index date of interest
 df = pd.read_csv('path/to/your/data')
 
 # Load and clean data
