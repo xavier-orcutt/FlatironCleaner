@@ -2677,8 +2677,9 @@ class DataProcessorNSCLC:
         - If no supplementary files are provided or a patient has no activity in 
           supplementary files, duration may be null for censored patients
         
-        Duplicate PatientIDs are logged as warnings if found but retained in output
-        Processed DataFrame is stored in self.mortality_df
+        Output handling: 
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.mortality_df
         """
         # Input validation
         if not isinstance(index_date_df, pd.DataFrame):
