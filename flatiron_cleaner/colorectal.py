@@ -714,11 +714,11 @@ class DataProcessorColorectal:
                 unique patient identifier
             - BRAF_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
-            - KRAS_status : cateogory
+            - KRAS_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
-            - NRAS_status : cateogory
+            - NRAS_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
-            - MMR/MSI_status : cateogory
+            - MMR/MSI_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
 
         Notes
@@ -733,8 +733,11 @@ class DataProcessorColorectal:
             - MSI-L is classified as negative because these patients typically do not receive checkpoint 
               inhibitors like MSI-H patients and are clinically managed more similarly to MSS patients
         
-        Missing ResultDate is imputed with SpecimenReceivedDate.
-        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without any biomarker tests
+        Missing biomarker data handling:
+            - All PatientIDs from index_date_df are included in the output
+            - Patients without any biomarker tests will have NaN values for all biomarker columns
+            - Missing ResultDate is imputed with SpecimenReceivedDate
+            
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.biomarkers_df
         """
@@ -801,7 +804,7 @@ class DataProcessorColorectal:
                         else ('negative' if any('Mutation negative' in val for val in x)
                             else 'unknown'))
                     .reset_index()
-                    .rename(columns={'BiomarkerStatus': f'{biomarker}_status'})  # Rename for clarity
+                    .rename(columns={'BiomarkerStatus': f'{biomarker}_status'}) 
             )
                 
             # Process MMR/MSI
@@ -816,16 +819,15 @@ class DataProcessorColorectal:
                 'MSI-L'
             }
 
-            for biomarker in ['MMR/MSI']:
-                biomarker_dfs[biomarker] = (
-                    df_filtered
-                    .query(f'BiomarkerName == "{biomarker}"')
-                    .groupby('PatientID')['BiomarkerStatus']
-                    .agg(lambda x: 'positive' if any(val in positive_values for val in x)
-                        else ('negative' if any(val in negative_values for val in x)
-                            else 'unknown'))
-                    .reset_index()
-                    .rename(columns={'BiomarkerStatus': f'{biomarker}_status'})  # Rename for clarity
+            biomarker_dfs['MMR/MSI'] = (
+                df_filtered
+                .query('BiomarkerName == "MMR/MSI"')
+                .groupby('PatientID')['BiomarkerStatus']
+                .agg(lambda x: 'positive' if any(val in positive_values for val in x)
+                    else ('negative' if any(val in negative_values for val in x)
+                        else 'unknown'))
+                .reset_index()
+                .rename(columns={'BiomarkerStatus': 'MMR/MSI_status'}) 
             )
 
             # Merge dataframes -- start with index_date_df to ensure all PatientIDs are included
@@ -850,6 +852,7 @@ class DataProcessorColorectal:
         except Exception as e:
             logging.error(f"Error processing Enhanced_MetCRCCBiomarkers.csv file: {e}")
             return None
+        
     def process_ecog(self, 
                      file_path: str,
                      index_date_df: pd.DataFrame,

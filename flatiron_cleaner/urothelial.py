@@ -1055,21 +1055,23 @@ class DataProcessorUrothelial:
                 unique patient identifier
             - FGFR_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
-            - PDL1_status : cateogory
+            - PDL1_status : category
                 positive if ever-positive, negative if only-negative, otherwise unknown
             - PDL1_percent_staining : category, ordered 
-                returns a patient's maximum percent staining for PDL1
+                returns a patient's maximum percent staining for PDL1 (NaN if no positive PDL1 results)
 
         Notes
         ------
-        Missing ResultDate is imputed with SpecimenReceivedDate.
-        All PatientIDs from index_date_df are included in the output and values will be NaN for patients without any biomarker tests
         For each biomarker, status is classified as:
             - 'positive' if any test result is positive (ever-positive)
             - 'negative' if any test is negative without positives (only-negative) 
             - 'unknown' if all results are indeterminate
-        - PDL1 status follows the same classification logic
-        - PDL1 staining percentage is also captured
+
+        Missing biomarker data handling:
+            - All PatientIDs from index_date_df are included in the output
+            - Patients without any biomarker tests will have NaN values for all biomarker columns
+            - Missing ResultDate is imputed with SpecimenReceivedDate
+
         Duplicate PatientIDs are logged as warnings if found but retained in output
         Processed DataFrame is stored in self.biomarkers_df
         """
