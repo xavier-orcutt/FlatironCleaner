@@ -1384,7 +1384,6 @@ class DataProcessorUrothelial:
             logging.error(f"Error processing ECOG.csv file: {e}")
             return None
         
-
     def process_vitals(self,
                        file_path: str,
                        index_date_df: pd.DataFrame,
@@ -1425,9 +1424,9 @@ class DataProcessorUrothelial:
         pd.DataFrame
             - PatientID : object 
                 unique patient identifier
-            - weight : float
+            - weight_index : float
                 weight in kg closest to index date within specified window (index_date - weight_days_before) to (index_date + weight_days_after)
-            - bmi : float
+            - bmi_index : float
                 BMI closest to index date within specified window (index_date - weight_days_before) to (index_date + days_after)
             - percent_change_weight : float
                 percentage change in weight over period from (index_date - vital_summary_lookback) to (index_date + days_after)
@@ -1466,7 +1465,7 @@ class DataProcessorUrothelial:
         - TestDate rather than ResultDate is used since TestDate is always populated and, for vital signs, the measurement date (TestDate) and result date (ResultDate) should be identical since vitals are recorded in real-time
         
         Output handling: 
-        - All PatientIDs from index_date_df are included in the output and values will be NaN for patients without weight, BMI, or percent_change_weight, but set to 0 for hypotension, tachycardia, and fevers
+        - All PatientIDs from index_date_df are included in the output and values will be NaN for patients without weight, BMI, or percent_change_weight, but set to 0 for hypotension, tachycardia, fevers, and hypoxemia 
         - Duplicate PatientIDs are logged as warnings but retained in output
         - Results are stored in self.vitals_df attribute
         """
@@ -1539,7 +1538,7 @@ class DataProcessorUrothelial:
                 .first()
                 .reset_index()
                 [['PatientID', 'TestResultCleaned']]
-                .rename(columns = {'TestResultCleaned': 'weight'})
+                .rename(columns = {'TestResultCleaned': 'weight_index'})
             )
             
             # Impute missing TestResultCleaned heights using TestResult 
@@ -1567,17 +1566,17 @@ class DataProcessorUrothelial:
             weight_index_df = pd.merge(weight_index_df, height_df, on = 'PatientID', how = 'left')
             
             # Check if both weight and height are present
-            has_both_measures = weight_index_df['weight'].notna() & weight_index_df['height'].notna()
+            has_both_measures = weight_index_df['weight_index'].notna() & weight_index_df['height'].notna()
             
             # Only calculate BMI where both measurements exist
-            weight_index_df.loc[has_both_measures, 'bmi'] = (
-                weight_index_df.loc[has_both_measures, 'weight'] / 
+            weight_index_df.loc[has_both_measures, 'bmi_index'] = (
+                weight_index_df.loc[has_both_measures, 'weight_index'] / 
                 weight_index_df.loc[has_both_measures, 'height']**2
             )
 
             # Replace implausible BMI values with NaN
-            implausible_bmi = weight_index_df['bmi'] < 13
-            weight_index_df.loc[implausible_bmi, 'bmi'] = np.nan
+            implausible_bmi = weight_index_df['bmi_index'] < 13
+            weight_index_df.loc[implausible_bmi, 'bmi_index'] = np.nan
                     
             weight_index_df = weight_index_df.drop(columns=['height'])
 
@@ -1609,8 +1608,8 @@ class DataProcessorUrothelial:
             bp_df = df_summary_filtered.query("Test == 'systolic blood pressure'").copy()
 
             bp_df['TestResultCleaned'] = np.where(bp_df['TestResultCleaned'].isna(),
-                                                bp_df['TestResult'],
-                                                bp_df['TestResultCleaned'])
+                                                  bp_df['TestResult'],
+                                                  bp_df['TestResultCleaned'])
 
             hypotension_df = (
                 bp_df
@@ -1628,8 +1627,8 @@ class DataProcessorUrothelial:
             hr_df = df_summary_filtered.query("Test == 'heart rate'").copy()
 
             hr_df['TestResultCleaned'] = np.where(hr_df['TestResultCleaned'].isna(),
-                                                hr_df['TestResult'],
-                                                hr_df['TestResultCleaned'])
+                                                  hr_df['TestResult'],
+                                                  hr_df['TestResultCleaned'])
 
             tachycardia_df = (
                 hr_df 
@@ -1670,8 +1669,8 @@ class DataProcessorUrothelial:
             oxygen_df = df_summary_filtered.query("Test == 'oxygen saturation in arterial blood by pulse oximetry'").copy()
 
             oxygen_df['TestResultCleaned'] = np.where(oxygen_df['TestResultCleaned'].isna(),
-                                                    oxygen_df['TestResult'],
-                                                    oxygen_df['TestResultCleaned'])
+                                                      oxygen_df['TestResult'],
+                                                      oxygen_df['TestResultCleaned'])
             
             hypoxemia_df = (
                 oxygen_df
