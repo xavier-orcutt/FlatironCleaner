@@ -2549,11 +2549,11 @@ class DataProcessorBreast:
         telemedicine_path : str
             Path to Telemedicine.csv file, used to determine last EHR activity date for censored patients
         biomarkers_path : str
-            Path to Enhanced_AdvNSCLCBiomarkers.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetBreastBiomarkers.csv file, used to determine last EHR activity date for censored patients
         oral_path : str
-            Path to Enhanced_AdvNSCLC_Orals.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetBreast_Orals.csv file, used to determine last EHR activity date for censored patients
         progression_path : str
-            Path to Enhanced_AdvNSCLC_Progression.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetBreast_Progression.csv file, used to determine last EHR activity date for censored patients
         drop_dates : bool, default = True
             If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
@@ -2685,7 +2685,7 @@ class DataProcessorBreast:
                         )
                         patient_last_dates.append(df_biomarkers_max)
                     except Exception as e:
-                        logging.error(f"Error reading Enhanced_AdvNSCLCBiomarkers.csv file: {e}")
+                        logging.error(f"Error reading Enhanced_MetBreastBiomarkers.csv file: {e}")
 
                 # Process oral medication data
                 if oral_path is not None:
@@ -2705,7 +2705,7 @@ class DataProcessorBreast:
                         )
                         patient_last_dates.append(df_oral_max)
                     except Exception as e:
-                        logging.error(f"Error reading Enhanced_AdvNSCLC_Orals.csv file: {e}")
+                        logging.error(f"Error reading Enhanced_MetBreast_Orals.csv file: {e}")
 
                 # Process progression data
                 if progression_path is not None:
@@ -2725,7 +2725,7 @@ class DataProcessorBreast:
                         )
                         patient_last_dates.append(df_progression_max)
                     except Exception as e:
-                        logging.error(f"Error reading Enhanced_AdvNSCLC_Progression.csv file: {e}")
+                        logging.error(f"Error reading Enhanced_MetBreast_Progression.csv file: {e}")
 
                 # Combine all last activity dates
                 if patient_last_dates:
