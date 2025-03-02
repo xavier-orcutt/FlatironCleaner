@@ -426,7 +426,7 @@ class DataProcessorNSCLC:
                          file_path: str,
                          patient_ids: list = None,
                          drop_stage: bool = True, 
-                         drop_dates: bool = True) -> pd.DataFrame: 
+                         drop_dates: bool = True) -> Optional[pd.DataFrame]: 
         """
         Processes Enhanced_AdvancedNSCLC.csv to standardize categories, consolidate staging information, and calculate time-based metrics between key clinical events.
 
@@ -443,7 +443,7 @@ class DataProcessorNSCLC:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - Histology : category
@@ -523,7 +523,7 @@ class DataProcessorNSCLC:
                              file_path: str,
                              index_date_df: pd.DataFrame,
                              index_date_column: str,
-                             drop_state: bool = True) -> pd.DataFrame:
+                             drop_state: bool = True) -> Optional[pd.DataFrame]:
         """
         Processes Demographics.csv by standardizing categorical variables, mapping states to census regions, and calculating age at index date.
 
@@ -540,7 +540,7 @@ class DataProcessorNSCLC:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - Gender : category
@@ -644,7 +644,7 @@ class DataProcessorNSCLC:
     
     def process_practice(self,
                          file_path: str,
-                         patient_ids: list = None) -> pd.DataFrame:
+                         patient_ids: list = None) -> Optional[pd.DataFrame]:
         """
         Processes Practice.csv to consolidate practice types per patient into a single categorical value indicating academic, community, or both settings.
 
@@ -657,7 +657,7 @@ class DataProcessorNSCLC:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier  
             - PracticeType_mod : category
@@ -722,7 +722,7 @@ class DataProcessorNSCLC:
                            index_date_df: pd.DataFrame,
                            index_date_column: str, 
                            days_before: Optional[int] = None,
-                           days_after: int = 0) -> pd.DataFrame:
+                           days_after: int = 0) -> Optional[pd.DataFrame]:
         """
         Processes Enhanced_AdvNSCLCBiomarkers.csv by determining biomarker status for each patient within a specified time window relative to an index date. 
 
@@ -741,7 +741,7 @@ class DataProcessorNSCLC:
         
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - EGFR_status : category
@@ -963,7 +963,7 @@ class DataProcessorNSCLC:
                      index_date_column: str, 
                      days_before: int = 90,
                      days_after: int = 0, 
-                     days_before_further: int = 180) -> pd.DataFrame:
+                     days_before_further: int = 180) -> Optional[pd.DataFrame]:
         """
         Processes ECOG.csv to determine patient ECOG scores and progression patterns relative 
         to a reference index date. Uses two different time windows for distinct clinical purposes:
@@ -992,7 +992,7 @@ class DataProcessorNSCLC:
             
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - ecog_index : category, ordered 
@@ -1122,7 +1122,7 @@ class DataProcessorNSCLC:
                        weight_days_before: int = 90,
                        days_after: int = 0,
                        vital_summary_lookback: int = 180, 
-                       abnormal_reading_threshold: int = 2) -> pd.DataFrame:
+                       abnormal_reading_threshold: int = 2) -> Optional[pd.DataFrame]:
         """
         Processes Vitals.csv to determine patient BMI, weight, change in weight, and vital sign abnormalities
         within a specified time window relative to an index date. Two different time windows are used:
@@ -1152,7 +1152,7 @@ class DataProcessorNSCLC:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object 
                 unique patient identifier
             - weight_index : float
@@ -1445,7 +1445,7 @@ class DataProcessorNSCLC:
                           index_date_column: str,
                           days_before: Optional[int] = None,
                           days_after: int = 0,
-                          missing_date_strategy: str = 'conservative') -> pd.DataFrame:
+                          missing_date_strategy: str = 'conservative') -> Optional[pd.DataFrame]:
         """
         Processes insurance data to identify insurance coverage relative to a specified index date.
         Insurance types are grouped into four categories: Medicare, Medicaid, Commercial, and Other Insurance. 
@@ -1469,7 +1469,7 @@ class DataProcessorNSCLC:
         
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - medicare : Int64
@@ -1723,7 +1723,7 @@ class DataProcessorNSCLC:
                      additional_loinc_mappings: dict = None,
                      days_before: int = 90,
                      days_after: int = 0,
-                     summary_lookback: int = 180) -> pd.DataFrame:
+                     summary_lookback: int = 180) -> Optional[pd.DataFrame]:
         """
         Processes Lab.csv to determine patient lab values within a specified time window relative to an index date. Returns CBC and CMP values 
         nearest to index date, along with summary statistics (max, min, standard deviation, and slope) calculated over the summary period. 
@@ -1751,7 +1751,7 @@ class DataProcessorNSCLC:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
 
@@ -2128,7 +2128,7 @@ class DataProcessorNSCLC:
                             index_date_df: pd.DataFrame,
                             index_date_column: str,
                             days_before: int = 90,
-                            days_after: int = 0) -> pd.DataFrame:
+                            days_after: int = 0) -> Optional[pd.DataFrame]:
         """
         Processes MedicationAdministration.csv to determine clinically relevant medicines received by patients within a specified time window 
         relative to an index date. 
@@ -2148,7 +2148,7 @@ class DataProcessorNSCLC:
         
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : ojbect
                 unique patient identifier
             - anticoagulant : Int64
@@ -2383,7 +2383,7 @@ class DataProcessorNSCLC:
                           index_date_df: pd.DataFrame,
                           index_date_column: str,
                           days_before: Optional[int] = None,
-                          days_after: int = 0) -> pd.DataFrame:
+                          days_after: int = 0) -> Optional[pd.DataFrame]:
         """
         Processes Diagnosis.csv by mapping ICD 9 and 10 codes to Elixhauser comorbidity index and calculates a van Walraven score. 
         It also determines site of metastases based on ICD 9 and 10 codes. 
@@ -2403,7 +2403,7 @@ class DataProcessorNSCLC:
         
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object, unique patient identifier
             - chf : binary indicator for congestive heart failure
             - cardiac_arrhythmia : binary indicator for cardiac arrhythmias
@@ -2632,7 +2632,7 @@ class DataProcessorNSCLC:
                           biomarkers_path: str = None, 
                           oral_path: str = None,
                           progression_path: str = None,
-                          drop_dates: bool = True) -> pd.DataFrame:
+                          drop_dates: bool = True) -> Optional[pd.DataFrame]:
         """
         Processes Enhanced_Mortality_V2.csv by cleaning data types, calculating time from index date to death/censor, and determining mortality events. 
 
@@ -2659,7 +2659,7 @@ class DataProcessorNSCLC:
         
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - duration : float

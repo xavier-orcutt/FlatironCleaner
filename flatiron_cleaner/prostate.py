@@ -151,7 +151,7 @@ class DataProcessorProstate:
                          patient_ids: list = None,
                          index_date_df: pd.DataFrame = None,
                          drop_stages: bool = True,
-                         drop_dates: bool = True) -> pd.DataFrame: 
+                         drop_dates: bool = True) -> Optional[pd.DataFrame]: 
         """
         Processes Enhanced_MetProstate.csv to standardize categories, consolidate staging information, and calculate time-based metrics between key clinical events.
         
@@ -179,7 +179,7 @@ class DataProcessorProstate:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None 
             - PatientID : object
                 unique patient identifier
             - GroupStage_mod : category
@@ -386,7 +386,7 @@ class DataProcessorProstate:
                              file_path: str,
                              index_date_df: pd.DataFrame,
                              index_date_column: str,
-                             drop_state: bool = True) -> pd.DataFrame:
+                             drop_state: bool = True) -> Optional[pd.DataFrame]:
         """
         Processes Demographics.csv by standardizing categorical variables, mapping states to census regions, and calculating age at index date.
 
@@ -403,7 +403,7 @@ class DataProcessorProstate:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - Race : category
@@ -507,7 +507,7 @@ class DataProcessorProstate:
         
     def process_practice(self,
                          file_path: str,
-                         patient_ids: list = None) -> pd.DataFrame:
+                         patient_ids: list = None) -> Optional[pd.DataFrame]:
         """
         Processes Practice.csv to consolidate practice types per patient into a single categorical value indicating academic, community, or both settings.
 
@@ -520,7 +520,7 @@ class DataProcessorProstate:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None 
             - PatientID : object
                 unique patient identifier  
             - PracticeType_mod : category
@@ -585,7 +585,7 @@ class DataProcessorProstate:
                            index_date_df: pd.DataFrame,
                            index_date_column: str, 
                            days_before: Optional[int] = None,
-                           days_after: int = 0) -> pd.DataFrame:
+                           days_after: int = 0) -> Optional[pd.DataFrame]:
         """
         Processes Enhanced_MetPC_Biomarkers.csv by determining biomarker status for each patient within a specified time window relative to an index date. 
 
@@ -604,7 +604,7 @@ class DataProcessorProstate:
         
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - BRCA_status : category
@@ -727,7 +727,7 @@ class DataProcessorProstate:
                      index_date_column: str, 
                      days_before: int = 90,
                      days_after: int = 0, 
-                     days_before_further: int = 180) -> pd.DataFrame:
+                     days_before_further: int = 180) -> Optional[pd.DataFrame]:
         """
         Processes ECOG.csv to determine patient ECOG scores and progression patterns relative 
         to a reference index date. Uses two different time windows for distinct clinical purposes:
@@ -756,7 +756,7 @@ class DataProcessorProstate:
             
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None
             - PatientID : object
                 unique patient identifier
             - ecog_index : category, ordered 
@@ -886,7 +886,7 @@ class DataProcessorProstate:
                        weight_days_before: int = 90,
                        days_after: int = 0,
                        vital_summary_lookback: int = 180, 
-                       abnormal_reading_threshold: int = 2) -> pd.DataFrame:
+                       abnormal_reading_threshold: int = 2) -> Optional[pd.DataFrame]:
         """
         Processes Vitals.csv to determine patient BMI, weight, change in weight, and vital sign abnormalities
         within a specified time window relative to an index date. Two different time windows are used:
@@ -916,7 +916,7 @@ class DataProcessorProstate:
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame or None 
             - PatientID : object 
                 unique patient identifier
             - weight_index : float
