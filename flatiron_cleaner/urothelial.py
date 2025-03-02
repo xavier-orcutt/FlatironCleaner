@@ -12,16 +12,16 @@ logging.basicConfig(
 class DataProcessorUrothelial:
     
     GROUP_STAGE_MAPPING = {
-        'Stage IV': 'Stage IV',
-        'Stage IVA': 'Stage IV',
-        'Stage IVB': 'Stage IV',
-        'Stage III': 'Stage III',
-        'Stage IIIA': 'Stage III',
-        'Stage IIIB': 'Stage III',
-        'Stage II': 'Stage II',
-        'Stage I': 'Stage I',
-        'Stage 0is': 'Stage 0',
-        'Stage 0a': 'Stage 0',
+        'Stage IV': 'IV',
+        'Stage IVA': 'IV',
+        'Stage IVB': 'IV',
+        'Stage III': 'III',
+        'Stage IIIA': 'III',
+        'Stage IIIB': 'III',
+        'Stage II': 'II',
+        'Stage I': 'I',
+        'Stage 0is': '0',
+        'Stage 0a': '0',
         'Unknown/not documented': 'unknown'
     }
 
@@ -36,10 +36,19 @@ class DataProcessorUrothelial:
         'T2a': 'T2',
         'T2b': 'T2',
         'T1': 'T1',
-        'T0': 'T0',
-        'Ta': 'Ta',
-        'Tis': 'Tis',
-        'TX': 'TX',
+        'Ta': 'nmibc',
+        'Tis': 'nmibc',
+        'T0': 'other',
+        'TX': 'other',
+        'Unknown/not documented': 'other'
+    }
+
+    N_STAGE_MAPPING = {
+        'N3': 'N3',
+        'N2': 'N2',
+        'N1': 'N1',
+        'N0': 'N0',
+        'NX': 'unknown',
         'Unknown/not documented': 'unknown'
     }
 
@@ -48,7 +57,7 @@ class DataProcessorUrothelial:
         'M1a': 'M1',
         'M1b': 'M1',
         'M0': 'M0',
-        'MX': 'MX',
+        'MX': 'unknown',
         'Unknown/not documented': 'unknown'
     }
 
@@ -464,9 +473,9 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Enhanced_AdvUrothelial.csv file
         patient_ids : list, optional
-            List of specific PatientIDs to process. If None, processes all patients
+            List of PatientIDs to process. If None, processes all patients
         drop_stages : bool, default=True
-            If True, drops original staging columns (GroupStage, TStage, and MStage) after creating modified versions
+            If True, drops original staging columns (GroupStage, TStage, NStage, and MStage) after creating modified versions
         drop_surgery_type : bool, default=True
             If True, drops original surgery type after creating modified version
         drop_dates : bool, default=True
@@ -488,15 +497,15 @@ class DataProcessorUrothelial:
             - days_diagnosis_to_surgery : float
                 days from first diagnosis to surgery
             - DiseaseGrade : category
-                tumor grade at time of first diagnosis
-            - NStage : category
-                lymph node staging at time of first diagnosis
+                tumor grade (high, low, and unknown) at time of first diagnosis
             - GroupStage_mod : category
-                consolidated overall staging (0-IV, Unknown) at time of first diagnosis
+                consolidated overall staging (0-IV and unknown) at time of first diagnosis
             - TStage_mod : category
-                consolidated tumor staging (T0-T4, Ta, Tis, TX, Unknown) at time of first diagnosis
+                consolidated tumor staging (T1-T4, non-muscle invasive bladder cancer [nmibc], other) at time of first diagnosis
+            - NStage_mod : category
+                consolidated lymph node staging (N0, N1, N2, N3, and unknown) at time of first diagnosis
             - MStage_mod : category
-                consolidated metastasis staging (M0, M1, MX, Unknown) at time of first diagnosis
+                consolidated metastasis staging (M0, M1, and unknown) at time of first diagnosis
             - days_diagnosis_to_adv : float
                 days from first diagnosis to advanced disease 
             - adv_diagnosis_year : category
@@ -508,6 +517,10 @@ class DataProcessorUrothelial:
 
         Notes
         -----
+        Notable T-Stage consolidation decisions:
+            - Ta and Tis : 'nmibc' (Non-muscle invasive disease)
+            - T0, TX, Unknown/not documented : 'other' 
+
         Output handling:
         - Duplicate PatientIDs are logged as warnings if found but reatained in output
         - Processed DataFrame is stored in self.enhanced_df
@@ -542,11 +555,12 @@ class DataProcessorUrothelial:
             # Recode stage variables using class-level mapping and create new column
             df['GroupStage_mod'] = df['GroupStage'].map(self.GROUP_STAGE_MAPPING).astype('category')
             df['TStage_mod'] = df['TStage'].map(self.T_STAGE_MAPPING).astype('category')
+            df['NStage_mod'] = df['NStage'].map(self.N_STAGE_MAPPING).astype('category')
             df['MStage_mod'] = df['MStage'].map(self.M_STAGE_MAPPING).astype('category')
 
             # Drop original stage variables if specified
             if drop_stages:
-                df = df.drop(columns=['GroupStage', 'TStage', 'MStage'])
+                df = df.drop(columns=['GroupStage', 'TStage', 'NStage', 'MStage'])
 
             # Recode surgery type variable using class-level mapping and create new column
             df['SurgeryType_mod'] = df['SurgeryType'].map(self.SURGERY_TYPE_MAPPING).astype('category')
@@ -596,8 +610,8 @@ class DataProcessorUrothelial:
         ----------
         file_path : str
             Path to Demographics.csv file
-        index_dates_df : pd.DataFrame, optional
-            DataFrame containing PatientID and index dates. Only demographics for PatientIDs present in this DataFrame will be processed
+        index_date_df : pd.DataFrame, optional
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only demographics for PatientIDs present in this DataFrame will be processed
         index_date_column : str, optional
             Column name in index_date_df containing index date
         drop_state : bool, default = True
@@ -642,6 +656,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         try:
             df = pd.read_csv(file_path)
@@ -717,7 +733,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Practice.csv file
         patient_ids : list, optional
-            List of specific PatientIDs to process. If None, processes all patients
+            List of PatientIDs to process. If None, processes all patients
 
         Returns
         -------
@@ -799,7 +815,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Enhanced_Mortality_V2.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only mortality data for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only mortality data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         visit_path : str
@@ -859,6 +875,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
 
         try:
             df = pd.read_csv(file_path)
@@ -1046,7 +1064,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Enhanced_AdvUrothelialBiomarkers.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only biomarkers for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only biomarker data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int | None, optional
@@ -1090,6 +1108,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -1227,7 +1247,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to ECOG.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only ECOGs for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only ECOGs for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int, optional
@@ -1268,6 +1288,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -1384,7 +1406,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Vitals.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only vitals for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only vitals for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         weight_days_before : int, optional
@@ -1455,6 +1477,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(weight_days_before, int) or weight_days_before < 0:
             raise ValueError("weight_days_before must be a non-negative integer")
@@ -1703,7 +1727,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Labs.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only labs for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only labs for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         additional_loinc_mappings : dict, optional
@@ -1777,6 +1801,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -2105,7 +2131,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to MedicationAdministration.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only medicines for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only medicines for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int, optional
@@ -2150,6 +2176,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -2358,7 +2386,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Diagnosis.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only diagnoses for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only diagnoses for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int | None, optional
@@ -2431,6 +2459,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -2454,7 +2484,7 @@ class DataProcessorUrothelial:
                 how = 'left'
             )
             logging.info(f"Successfully merged Diagnosis.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
-            
+
             df['index_to_diagnosis'] = (df['DiagnosisDate'] - df[index_date_column]).dt.days
             
             # Select ICD codes that fall within desired before and after index date
@@ -2603,7 +2633,7 @@ class DataProcessorUrothelial:
         file_path : str
             Path to Insurance.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only insurances for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only insurances for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int | None, optional
@@ -2671,6 +2701,8 @@ class DataProcessorUrothelial:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:

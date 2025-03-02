@@ -12,7 +12,7 @@ from .urothelial import DataProcessorUrothelial
 from .nsclc import DataProcessorNSCLC
 from .colorectal import DataProcessorColorectal
 from .breast import DataProcessorBreast
-#from .prostate import DataProcessorProstate
+from .prostate import DataProcessorProstate
 #from .general import DataProcessorGeneral
 from .merge_utils import merge_dataframes
 
@@ -22,7 +22,7 @@ __all__ = [
     'DataProcessorNSCLC',
     'DataProcessorColorectal',
     'DataProcessorBreast',
-    #'DataProcessorProstate',
+    'DataProcessorProstate',
     #'DataProcessorGeneral',
     'merge_dataframes',
 ]

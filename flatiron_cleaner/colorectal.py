@@ -417,7 +417,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Enhanced_MetastaticCRC.csv file
         patient_ids : list, optional
-            List of specific PatientIDs to process. If None, processes all patients
+            List of PatientIDs to process. If None, processes all patients
         drop_stage : bool, default=True
             If True, drops original GroupStage after consolidating into major groups
         drop_dates : bool, default=True
@@ -428,11 +428,11 @@ class DataProcessorColorectal:
         pd.DataFrame
             - PatientID : object
                 unique patient identifier
-            - GroupStage_mod : categorical
+            - GroupStage_mod : category
                 consolidated overall staging (0-IV, Unknown) at time of first diagnosis
             - days_diagnosis_to_met : float
                 days from first diagnosis to metastatic disease 
-            - adv_diagnosis_year : categorical
+            - adv_diagnosis_year : category
                 year of metastatic diagnosis 
             
             Original staging and date columns (DiagnosisDate and MetDiagnosisDate) retained if respective drop_* = False
@@ -506,8 +506,8 @@ class DataProcessorColorectal:
         ----------
         file_path : str
             Path to Demographics.csv file
-        index_dates_df : pd.DataFrame, optional
-            DataFrame containing PatientID and index dates. Only demographics for PatientIDs present in this DataFrame will be processed
+        index_date_df : pd.DataFrame, optional
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only demographic data for PatientIDs present in this DataFrame will be processed
         index_date_column : str, optional
             Column name in index_date_df containing index date
         drop_state : bool, default = True
@@ -552,6 +552,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
 
         try:
             df = pd.read_csv(file_path)
@@ -626,7 +628,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Practice.csv file
         patient_ids : list, optional
-            List of specific PatientIDs to process. If None, processes all patients
+            List of PatientIDs to process. If None, processes all patients
 
         Returns
         -------
@@ -704,7 +706,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Enhanced_AdvNSCLCBiomarkers.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only biomarkers for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only biomarker data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int | None, optional
@@ -755,6 +757,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -881,7 +885,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to ECOG.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only ECOGs for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only ECOGs for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int, optional
@@ -922,6 +926,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -1037,7 +1043,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Vitals.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only vitals for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only vitals for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         weight_days_before : int, optional
@@ -1108,6 +1114,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(weight_days_before, int) or weight_days_before < 0:
             raise ValueError("weight_days_before must be a non-negative integer")
@@ -1354,7 +1362,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Insurance.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only insurances for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only insurance data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int | None, optional
@@ -1422,6 +1430,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -1631,7 +1641,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Labs.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only labs for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only labs for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         additional_loinc_mappings : dict, optional
@@ -1705,6 +1715,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -2033,7 +2045,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to MedicationAdministration.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only medicines for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only medicines for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int, optional
@@ -2078,6 +2090,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if not isinstance(days_before, int) or days_before < 0:
             raise ValueError("days_before must be a non-negative integer")
@@ -2286,7 +2300,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Diagnosis.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only diagnoses for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only diagnoses for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         days_before : int | None, optional
@@ -2359,6 +2373,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
         if days_before is not None:
             if not isinstance(days_before, int) or days_before < 0:
@@ -2533,7 +2549,7 @@ class DataProcessorColorectal:
         file_path : str
             Path to Enhanced_Mortality_V2.csv file
         index_date_df : pd.DataFrame
-            DataFrame containing PatientID and index dates. Only mortality data for PatientIDs present in this DataFrame will be processed
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only mortality data for PatientIDs present in this DataFrame will be processed
         index_date_column : str
             Column name in index_date_df containing the index date
         visit_path : str
@@ -2595,6 +2611,8 @@ class DataProcessorColorectal:
             raise ValueError("index_date_df must contain a 'PatientID' column")
         if not index_date_column or index_date_column not in index_date_df.columns:
             raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
 
         try:
             df = pd.read_csv(file_path)
