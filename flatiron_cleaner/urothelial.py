@@ -624,9 +624,9 @@ class DataProcessorUrothelial:
                 unique patient identifier
             - Gender : category
                 gender
-            - Race : category
+            - Race_mod : category
                 race (White, Black or African America, Asian, Other Race)
-            - Ethnicity : category
+            - Ethnicity_mod : category
                 ethnicity (Hispanic or Latino, Not Hispanic or Latino)
             - age : Int64
                 age at index date (index year - birth year)
@@ -640,7 +640,7 @@ class DataProcessorUrothelial:
         Data cleaning and processing: 
         - Imputation for Race and Ethnicity:
             - If Race='Hispanic or Latino', Race value is replaced with NaN
-            - If Race='Hispanic or Latino', Ethnicity is set to 'Hispanic or Latino'
+            - If Race='Hispanic or Latino' and Ethnicity is missing, Ethnicity is set to 'Hispanic or Latino'
             - Otherwise, missing Race and Ethnicity values remain unchanged
         - Ages calculated as <18 or >120 are logged as warning if found, but not removed
         - Missing States and Puerto Rico are imputed as unknown during the mapping to regions
@@ -690,12 +690,18 @@ class DataProcessorUrothelial:
             df = df.drop(columns = [index_date_column, 'BirthYear'])
 
             # Race and Ethnicity processing
-            # If Race == 'Hispanic or Latino', fill 'Hispanic or Latino' for Ethnicity
-            df['Ethnicity'] = np.where(df['Race'] == 'Hispanic or Latino', 'Hispanic or Latino', df['Ethnicity'])
+            # If Race == 'Hispanic or Latino' and Ethnicity is empty, fill 'Hispanic or Latino' for Ethnicity
+            df['Ethnicity_mod'] = np.where((df['Race'] == 'Hispanic or Latino') & (df['Ethnicity'].isna()), 
+                                            'Hispanic or Latino', 
+                                            df['Ethnicity'])
 
             # If Race == 'Hispanic or Latino' replace with Nan
-            df['Race'] = np.where(df['Race'] == 'Hispanic or Latino', np.nan, df['Race'])
-            df[['Race', 'Ethnicity']] = df[['Race', 'Ethnicity']].astype('category')
+            df['Race_mod'] = np.where(df['Race'] == 'Hispanic or Latino', 
+                                      np.nan, 
+                                      df['Race'])
+
+            df[['Race_mod', 'Ethnicity_mod']] = df[['Race_mod', 'Ethnicity_mod']].astype('category')
+            df = df.drop(columns = ['Race', 'Ethnicity'])
 
             # Region processing
             # Group states into Census-Bureau regions  
@@ -1769,7 +1775,7 @@ class DataProcessorUrothelial:
             - {lab}_max : float, maximum value
             - {lab}_min : float, minimum value
             - {lab}_std : float, standard deviation
-            - {lab}_slope : float, rate of change over time
+            - {lab}_slope : float, rate of change over time (days)
 
         Notes
         -----
@@ -1783,10 +1789,12 @@ class DataProcessorUrothelial:
             - WBC/Platelet: Values in 10*3/L are multiplied by 1,000,000; values in /mm3 or 10*3/mL are multiplied by 1,000
             - Creatinine/BUN/Calcium: Values in mg/L are multiplied by 10 to convert to mg/dL
             - Albumin: Values in mg/dL are multiplied by 1,000 to convert to g/L; values 1-6 are assumed to be g/dL and multiplied by 10
-        - Lab value selection
+        - Lab value selection:
             - Baseline lab value closest to index date is selected by minimum absolute day difference within window period of 
             (index_date - days_before) to (index_date + days_after)
             - Summary lab values are calculated within window period of (index_date - summary_lookback) to (index_date + days_after)
+        For slope calculation:
+            - Patient needs at least 2 valid measurements, at 2 valid time points, and time points must not be identical
         
         Output handling: 
         - All PatientIDs from index_date_df are included in the output and values are NaN for patients without lab values 
@@ -2078,15 +2086,15 @@ class DataProcessorUrothelial:
             )
             
             slope_df = (
-                df_lab_index_filtered
+                df_lab_summary_filtered
                 .groupby(['PatientID', 'lab_name'])[['index_to_lab', 'TestResultCleaned']]
                 .apply(lambda x: np.polyfit(x['index_to_lab'],
-                                        x['TestResultCleaned'],
-                                        1)[0] # Extract slope coefficient from linear fit
-                    if (x['TestResultCleaned'].notna().sum() > 1 and # Need at least 2 valid measurements
-                        x['index_to_lab'].notna().sum() > 1 and      # Need at least 2 valid time points
-                        len(x['index_to_lab'].unique()) > 1)         # Time points must not be identical
-                    else np.nan) # Return NaN if conditions for valid slope calculation aren't met
+                                            x['TestResultCleaned'],
+                                            1)[0]                       # Extract slope coefficient with [0]
+                    if (x['TestResultCleaned'].notna().sum() > 1 and    # Need at least 2 valid measurements
+                        x['index_to_lab'].notna().sum() > 1 and         # Need at least 2 valid time points
+                        len(x['index_to_lab'].unique()) > 1)            # Time points must not be identical
+                    else np.nan)                                        # Return NaN if conditions for valid slope calculation aren't met
                 .reset_index()
                 .pivot(index = 'PatientID', columns = 'lab_name', values = 0)
                 .rename_axis(columns = None)
