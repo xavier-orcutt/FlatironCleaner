@@ -137,6 +137,17 @@ class DataProcessorProstate:
         'PR': 'unknown'
     }
 
+    INSURANCE_MAPPING = {
+        'Commercial Health Plan': 'commercial',
+        'Medicare': 'medicare',
+        'Medicaid': 'medicaid',
+        'Other Payer - Type Unknown': 'other_insurance',
+        'Other Government Program': 'other_insurance',
+        'Patient Assistance Program': 'other_insurance',
+        'Self Pay': 'other_insurance',
+        'Workers Compensation': 'other_insurance'
+    }
+
     def __init__(self):
         self.enhanced_df = None
         self.demographics_df = None
@@ -144,6 +155,7 @@ class DataProcessorProstate:
         self.biomarkers_df = None
         self.ecog_df = None 
         self.vitals_df = None
+        self.insurance_df = None 
 
     def process_enhanced(self,
                          file_path: str,
@@ -1201,4 +1213,281 @@ class DataProcessorProstate:
 
         except Exception as e:
             logging.error(f"Error processing Vitals.csv file: {e}")
+            return None
+    
+    def process_insurance(self,
+                          file_path: str,
+                          index_date_df: pd.DataFrame,
+                          index_date_column: str,
+                          days_before: Optional[int] = None,
+                          days_after: int = 0,
+                          missing_date_strategy: str = 'conservative') -> Optional[pd.DataFrame]:
+        """
+        Processes insurance data to identify insurance coverage relative to a specified index date.
+        Insurance types are grouped into four categories: Medicare, Medicaid, Commercial, and Other Insurance. 
+        
+        Parameters
+        ----------
+        file_path : str
+            Path to Insurance.csv file
+        index_date_df : pd.DataFrame
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only insurances for PatientIDs present in this DataFrame will be processed
+        index_date_column : str
+            Column name in index_date_df containing the index date
+        days_before : int | None, optional
+            Number of days before the index date to include for window period. Must be >= 0 or None. If None, includes all prior results. Default: None
+        days_after : int, optional
+            Number of days after the index date to include for window period. Must be >= 0. Default: 0
+        missing_date_strategy : str
+            Strategy for handling missing StartDate:
+            - 'conservative': Excludes records with both StartDate and EndDate missing and imputes EndDate for missing StartDate (may underestimate coverage)
+            - 'liberal': Assumes records with missing StartDates are always active and imputes default date of 2000-01-01 (may overestimate coverage)
+        
+        Returns
+        -------
+        pd.DataFrame or None
+            - PatientID : object
+                unique patient identifier
+            - medicare : Int64
+                binary indicator (0/1) for Medicare coverage
+            - medicaid : Int64
+                binary indicator (0/1) for Medicaid coverage
+            - commercial : Int64
+                binary indicator (0/1) for commercial insurance coverage
+            - other_insurance : Int64
+                binary indicator (0/1) for other insurance types (eg., other payer, other government program, patient assistance program, self pay, and workers compensation)
+
+        Notes
+        -----
+        Insurance is considered active if:
+        1. StartDate falls before or during the specified time window AND
+        2. Either:
+            - EndDate is missing (considered still active) OR
+            - EndDate falls on or after the start of the time window 
+
+        Date filtering:
+        - Records with StartDate or EndDate before 1900-01-01 are excluded to prevent integer overflow issues
+        when calculating date differences. This is a data quality measure as extremely old dates are likely
+        erroneous and can cause numerical problems in pandas datetime calculations.
+        - About 5% of the full dataset has misisng StartDate and EndDate.
+
+        Insurance categorization logic:
+        1. Original payer categories are preserved but enhanced with hybrid categories:
+        - Commercial_Medicare: Commercial plans with Medicare Advantage or Supplement
+        - Commercial_Medicaid: Commercial plans with Managed Medicaid
+        - Commercial_Medicare_Medicaid: Commercial plans with both Medicare and Medicaid indicators
+        - Other_Medicare: Other government program or other payer plans with Medicare Advantage or Supplement
+        - Other_Medicaid: Other government program or other payer plans with Managed Medicaid
+        - Other_Medicare_Medicaid: Other government program or other payer plans with both Medicare and Medicaid indicators
+            
+        2. Final insurance indicators are set as follows:
+        - medicare: Set to 1 for PayerCategory = Medicare, Commercial_Medicare, Commercial_Medicare_Medicaid, Other_Medicare, or Other_Medicare_Medicaid
+        - medicaid: Set to 1 for PayerCategory = Medicaid, Commercial_Medicaid, Commercial_Medicare_Medicaid, Other_Medicaid, or Other_Medicare_Medicaid
+        - commercial: Set to 1 for PayerCategory = Commercial Health Plan, Commercial_Medicare, Commercial_Medicaid, or Commercial_Medicare_Medicaid
+        - other_insurance: Set to 1 for PayerCategory = Other Payer - Type Unknown, Other Government Program, Patient Assistance Program, Self Pay, 
+            Workers Compensation, Other_Medicare, Other_Medicaid, Other_Medicare_Medicaid
+
+        Output handling:
+        - All PatientIDs from index_date_df are included in the output and value is set to 0 for those without insurance type 
+        - Duplicate PatientIDs are logged as warnings but retained in output
+        - Results are stored in self.insurance_df attribute
+        """
+        # Input validation
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
+        if not index_date_column or index_date_column not in index_date_df.columns:
+            raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        if days_before is not None:
+            if not isinstance(days_before, int) or days_before < 0:
+                raise ValueError("days_before must be a non-negative integer or None")
+        if not isinstance(days_after, int) or days_after < 0:
+            raise ValueError("days_after must be a non-negative integer")
+        
+        if not isinstance(missing_date_strategy, str):
+            raise ValueError("missing_date_strategy must be a string")    
+        valid_strategies = ['conservative', 'liberal']
+        if missing_date_strategy not in valid_strategies:
+            raise ValueError("missing_date_strategy must be 'conservative' or 'liberal'")
+
+        try:
+            df = pd.read_csv(file_path)
+            logging.info(f"Successfully read Insurance.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+
+            df['StartDate'] = pd.to_datetime(df['StartDate'])
+            df['EndDate'] = pd.to_datetime(df['EndDate'])
+
+            both_dates_missing = df['StartDate'].isna() & df['EndDate'].isna()
+            start_date_missing = df['StartDate'].isna()
+
+            if missing_date_strategy == 'conservative':
+                # Exclude records with both dates missing, and impute EndDate for missing StartDate
+                df = df[~both_dates_missing]
+                df['StartDate'] = np.where(df['StartDate'].isna(), df['EndDate'], df['StartDate'])
+            elif missing_date_strategy == 'liberal':
+                # Assume always active by setting StartDate to default date of 2000-01-01
+                df.loc[start_date_missing, 'StartDate'] = pd.Timestamp('2000-01-01')
+
+            # Filter for StartDate after 1900-01-01
+            df = df[df['StartDate'] > pd.Timestamp('1900-01-01')]
+            # Filter for Enddate missing or after 1900-01-01
+            df = df[(df['EndDate'].isna()) | (df['EndDate'] > pd.Timestamp('1900-01-01'))]
+
+            index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+
+            # Select PatientIDs that are included in the index_date_df the merge on 'left'
+            df = df[df.PatientID.isin(index_date_df.PatientID)]
+            df = pd.merge(
+                df,
+                index_date_df[['PatientID', index_date_column]],
+                on = 'PatientID',
+                how = 'left'
+            )
+            logging.info(f"Successfully merged Insurance.csv df with index_date_df resulting in shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
+
+            # Calculate days relative to index date for start 
+            df['days_to_start'] = (df['StartDate'] - df[index_date_column]).dt.days
+
+            # Reclassify Commerical Health Plans that have elements of Medicare, Medicaid, or Both
+            # Identify Commerical plus Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')) & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsManagedMedicaid'] != 'Yes'),
+                                            'Commercial_Medicare',
+                                            df['PayerCategory'])
+
+            # Identify Commerical plus Managed Medicaid plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & (df['IsManagedMedicaid'] == 'Yes') & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsMedicareAdv'] != 'Yes') & (df['IsMedicareSupp'] != 'Yes'),
+                                            'Commercial_Medicaid',
+                                            df['PayerCategory'])
+            
+            # Identify Commercial plus MedicareMedicaid plan
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & (df['IsMedicareMedicaid'] == 'Yes'),
+                                            'Commercial_Medicare_Medicaid',
+                                            df['PayerCategory'])
+
+            # Identify Commercial plus Managed Medicaid and Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where((df['PayerCategory'] == 'Commercial Health Plan') & (df['IsManagedMedicaid'] == 'Yes') & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')),
+                                            'Commercial_Medicare_Medicaid',
+                                            df['PayerCategory'])
+            
+
+            # Reclassify Other Health Plans that have elements of Medicare, Medicaid, or Both
+            # Identify Other plus Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')) & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsManagedMedicaid'] != 'Yes'),
+                                            'Other_Medicare',
+                                            df['PayerCategory'])
+
+            # Identify Other plus Managed Medicaid plans
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & (df['IsManagedMedicaid'] == 'Yes') & (df['IsMedicareMedicaid'] != 'Yes') & (df['IsMedicareAdv'] != 'Yes') & (df['IsMedicareSupp'] != 'Yes'),
+                                            'Other_Medicaid',
+                                            df['PayerCategory'])
+            
+            # Identify Other plus MedicareMedicaid plan
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & (df['IsMedicareMedicaid'] == 'Yes'),
+                                            'Other_Medicare_Medicaid',
+                                            df['PayerCategory'])
+
+            # Identify Other plus Managed Medicaid and Medicare Advantage or Supplement plans
+            df['PayerCategory'] = np.where(((df['PayerCategory'] == 'Other Payer - Type Unknown') | (df['PayerCategory'] == 'Other Government Program')) & (df['IsManagedMedicaid'] == 'Yes') & ((df['IsMedicareAdv'] == 'Yes') | (df['IsMedicareSupp'] == 'Yes')),
+                                            'Other_Medicare_Medicaid',
+                                            df['PayerCategory'])
+            
+            # Add hybrid insurance schems to mapping
+            self.INSURANCE_MAPPING['Commercial_Medicare'] = 'commercial_medicare'
+            self.INSURANCE_MAPPING['Commercial_Medicaid'] = 'commercial_medicaid'
+            self.INSURANCE_MAPPING['Commercial_Medicare_Medicaid'] = 'commercial_medicare_medicaid'
+            self.INSURANCE_MAPPING['Other_Medicare'] = 'other_medicare'
+            self.INSURANCE_MAPPING['Other_Medicaid'] = 'other_medicaid'
+            self.INSURANCE_MAPPING['Other_Medicare_Medicaid'] = 'other_medicare_medicaid'
+
+            # Define window boundaries
+            window_start = -days_before if days_before is not None else float('-inf')
+            window_end = days_after
+
+            # Insurance is active if it:
+            # 1. Starts before or during the window AND
+            # 2. Either has no end date OR ends after window starts
+            df_filtered = df[
+                (df['days_to_start'] <= window_end) &  # Starts before window ends
+                (
+                    df['EndDate'].isna() |  # Either has no end date (presumed to be still active)
+                    ((df['EndDate'] - df[index_date_column]).dt.days >= window_start)  # Or ends after window starts
+                )
+            ].copy()
+
+            df_filtered['PayerCategory'] = df_filtered['PayerCategory'].replace(self.INSURANCE_MAPPING)
+
+            final_df = (
+                df_filtered
+                .drop_duplicates(subset = ['PatientID', 'PayerCategory'], keep = 'first')
+                .assign(value=1)
+                .pivot(index = 'PatientID', columns = 'PayerCategory', values = 'value')
+                .fillna(0) 
+                .astype('Int64')  
+                .rename_axis(columns = None)
+                .reset_index()
+            )
+
+            # Adjust column indicators for commercial and other with medicare and medicaid plans
+            if 'commercial_medicare' in final_df.columns:
+                final_df.loc[final_df['commercial_medicare'] == 1, 'commercial'] = 1
+                final_df.loc[final_df['commercial_medicare'] == 1, 'medicare'] = 1
+            
+            if 'commercial_medicaid' in final_df.columns:
+                final_df.loc[final_df['commercial_medicaid'] == 1, 'commercial'] = 1
+                final_df.loc[final_df['commercial_medicaid'] == 1, 'medicaid'] = 1
+
+            if 'commercial_medicare_medicaid' in final_df.columns:
+                final_df.loc[final_df['commercial_medicare_medicaid'] == 1, 'commercial'] = 1
+                final_df.loc[final_df['commercial_medicare_medicaid'] == 1, 'medicare'] = 1
+                final_df.loc[final_df['commercial_medicare_medicaid'] == 1, 'medicaid'] = 1
+            
+            if 'other_medicare' in final_df.columns:
+                final_df.loc[final_df['other_medicare'] == 1, 'other_insurance'] = 1
+                final_df.loc[final_df['other_medicare'] == 1, 'medicare'] = 1
+            
+            if 'other_medicaid' in final_df.columns:
+                final_df.loc[final_df['other_medicaid'] == 1, 'other_insurance'] = 1
+                final_df.loc[final_df['other_medicaid'] == 1, 'medicaid'] = 1
+
+            if 'other_medicare_medicaid' in final_df.columns:
+                final_df.loc[final_df['other_medicare_medicaid'] == 1, 'other_insurance'] = 1
+                final_df.loc[final_df['other_medicare_medicaid'] == 1, 'medicare'] = 1
+                final_df.loc[final_df['other_medicare_medicaid'] == 1, 'medicaid'] = 1
+
+            # Merger index_date_df to ensure all PatientIDs are included
+            final_df = pd.merge(index_date_df[['PatientID']], final_df, on = 'PatientID', how = 'left')
+            
+            # Ensure all core insurance columns exist 
+            core_insurance_columns = ['medicare', 'medicaid', 'commercial', 'other_insurance']
+            for col in core_insurance_columns:
+                if col not in final_df.columns:
+                    final_df[col] = 0
+                final_df[col] = final_df[col].fillna(0).astype('Int64')
+
+            # Safely drop hybrid columns if they exist
+            hybrid_columns = ['commercial_medicare', 
+                              'commercial_medicaid', 
+                              'commercial_medicare_medicaid',
+                              'other_medicare', 
+                              'other_medicaid', 
+                              'other_medicare_medicaid']
+            
+            # Drop hybrid columns; errors = 'ignore' prevents error in the setting when column doesn't exist 
+            final_df = final_df.drop(columns=hybrid_columns, errors='ignore')
+
+            # Check for duplicate PatientIDs
+            if len(final_df) > final_df['PatientID'].nunique():
+                duplicate_ids = final_df[final_df.duplicated(subset = ['PatientID'], keep = False)]['PatientID'].unique()
+                logging.warning(f"Duplicate PatientIDs found: {duplicate_ids}")
+
+            logging.info(f"Successfully processed Insurance.csv file with final shape: {final_df.shape} and unique PatientIDs: {(final_df['PatientID'].nunique())}")
+            self.insurance_df = final_df
+            return final_df
+
+        except Exception as e:
+            logging.error(f"Error processing Insurance.csv file: {e}")
             return None
