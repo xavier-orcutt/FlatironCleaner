@@ -659,6 +659,15 @@ class DataProcessorUrothelial:
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
+        
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
@@ -883,6 +892,15 @@ class DataProcessorUrothelial:
             raise ValueError('index_date_column not found in index_date_df')
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1122,6 +1140,15 @@ class DataProcessorUrothelial:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1301,6 +1328,15 @@ class DataProcessorUrothelial:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1493,6 +1529,15 @@ class DataProcessorUrothelial:
             raise ValueError("vital_summary_lookback must be a non-negative integer")
         if not isinstance(abnormal_reading_threshold, int) or abnormal_reading_threshold < 1:
             raise ValueError("abnormal_reading_threshold must be an integer ≥1")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path, low_memory = False)
@@ -1817,6 +1862,15 @@ class DataProcessorUrothelial:
             raise ValueError("days_after must be a non-negative integer")
         if not isinstance(summary_lookback, int) or summary_lookback < 0:
             raise ValueError("summary_lookback must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
         
         # Add user-provided mappings if they exist
         if additional_loinc_mappings is not None:
@@ -2190,6 +2244,15 @@ class DataProcessorUrothelial:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2474,6 +2537,15 @@ class DataProcessorUrothelial:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
