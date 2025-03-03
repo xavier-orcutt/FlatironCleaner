@@ -60,7 +60,7 @@ The following methods are available across all processor classes, including the 
 Cancer-specific classes contain additional methods (e.g., `process_enhanced()` and `process_biomarkers()`). For a complete list of available methods for each cancer type, refer to the class documentation in the source code or use Python's built-in help functionality:
 
 ```python
-from flatiron_cleaner.urothelial import DataProcessorUrothelial
+from flatiron_cleaner import DataProcessorUrothelial
 
 # View all methods and documentation
 help(DataProcessorUrothelial)
@@ -70,8 +70,8 @@ help(DataProcessorUrothelial)
 ## Usage Example
 
 ```python
-from flatiron_cleaner.urothelial import DataProcessorUrothelial
-from flatiron_cleaner.merge_utils import merge_dataframes
+from flatiron_cleaner import DataProcessorUrothelial
+from flatiron_cleaner import merge_dataframes
 
 # Initialize class
 processor = DataProcessorUrothelial()
