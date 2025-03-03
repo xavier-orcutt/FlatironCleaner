@@ -2722,6 +2722,14 @@ class DataProcessorUrothelial:
         valid_strategies = ['conservative', 'liberal']
         if missing_date_strategy not in valid_strategies:
             raise ValueError("missing_date_strategy must be 'conservative' or 'liberal'")
+        
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
