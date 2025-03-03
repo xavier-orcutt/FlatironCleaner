@@ -6,7 +6,6 @@
 
 - **Cancer-specific processors** for different cancer types
 - **Flexible date windowing** to analyze data relative to an index date
-- **Consistent data harmonization** across Flatiron file types
 - **Reproducible data preparation** workflows
 
 ## Installation

@@ -2261,7 +2261,7 @@ class DataProcessorProstate:
                         np.log(x['TestResultCleaned']),                             # log transform PSA values    
                         1)[0]:                                                      # Extract slope coefficient with [0]
                         
-                        # Ceck if slope is positive before calc doubling time
+                        # Check if slope is positive 
                         math.log(2)/slope if slope > 0 else np.nan)()               # Return NaN if slope is negative or zero
 
                     # Outer lambda: data quality check     
