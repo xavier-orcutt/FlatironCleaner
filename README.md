@@ -46,14 +46,14 @@ The following methods are available across all processor classes, including the 
 | Method | Description | File Processed |
 |--------|-------------|----------------|
 | `process_demographics()` | Processes patient demographic information | Demographics.csv |
-| `process_mortality()` | Handles mortality data | Enhanced_Mortality_V2.csv |
+| `process_mortality()` | Processes mortality data | Enhanced_Mortality_V2.csv |
 | `process_ecog()` | Processes performance status data | ECOG.csv |
-| `process_medications()` | Cleans medication administration records | MedicationAdministration.csv |
-| `process_diagnosis()` | Processes diagnosis information | Diagnosis.csv |
-| `process_labs()` | Handles laboratory test results | Lab.csv |
+| `process_medications()` | Processes medication administration records | MedicationAdministration.csv |
+| `process_diagnosis()` | Processes ICD coding information | Diagnosis.csv |
+| `process_labs()` | Processes laboratory test results | Lab.csv |
 | `process_vitals()` | Processes vital signs data | Vitals.csv |
 | `process_insurance()` | Processes insurance information | Insurance.csv |
-| `process_practice()` | Handles practice/facility data | Practice.csv |
+| `process_practice()` | Processes practice type data | Practice.csv |
 
 ### Cancer-Specific Methods
 
