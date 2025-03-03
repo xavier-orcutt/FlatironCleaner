@@ -554,6 +554,15 @@ class DataProcessorColorectal:
             raise ValueError('index_date_column not found in index_date_df')
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -771,6 +780,15 @@ class DataProcessorColorectal:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -939,6 +957,15 @@ class DataProcessorColorectal:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1131,6 +1158,15 @@ class DataProcessorColorectal:
             raise ValueError("vital_summary_lookback must be a non-negative integer")
         if not isinstance(abnormal_reading_threshold, int) or abnormal_reading_threshold < 1:
             raise ValueError("abnormal_reading_threshold must be an integer ≥1")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path, low_memory = False)
@@ -1450,6 +1486,15 @@ class DataProcessorColorectal:
         valid_strategies = ['conservative', 'liberal']
         if missing_date_strategy not in valid_strategies:
             raise ValueError("missing_date_strategy must be 'conservative' or 'liberal'")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1732,6 +1777,15 @@ class DataProcessorColorectal:
             raise ValueError("days_after must be a non-negative integer")
         if not isinstance(summary_lookback, int) or summary_lookback < 0:
             raise ValueError("summary_lookback must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
         
         # Add user-provided mappings if they exist
         if additional_loinc_mappings is not None:
@@ -2105,6 +2159,15 @@ class DataProcessorColorectal:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2389,6 +2452,15 @@ class DataProcessorColorectal:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2561,15 +2633,13 @@ class DataProcessorColorectal:
         index_date_column : str
             Column name in index_date_df containing the index date
         visit_path : str
-            Path to Visit.csv file, used to determine last EHR activity date for censored patients
+            Path to Visit.csv file, using VisitDate to determine last EHR activity date for censored patients
         telemedicine_path : str
-            Path to Telemedicine.csv file, used to determine last EHR activity date for censored patients
+            Path to Telemedicine.csv file, using VisitDate to determine last EHR activity date for censored patients
         biomarkers_path : str
-            Path to Enhanced_MetCRCBiomarkers.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetCRCBiomarkers.csv file, using SpecimenCollectedDate to determine last EHR activity date for censored patients
         oral_path : str
-            Path to Enhanced_MetCRC_Orals.csv file, used to determine last EHR activity date for censored patients
-        progression_path : str
-            Path to Enhanced_MetCRC_Progression.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetCRC_Orals.csv file, using StartDate and EndDate to determine last EHR activity date for censored patients
         drop_dates : bool, default = True
             If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
@@ -2604,7 +2674,7 @@ class DataProcessorColorectal:
         Censoring logic:
         - Patients without death dates are censored at their last EHR activity
         - Last EHR activity is determined as the maximum date across all provided
-          supplementary files (visit, telemedicine, biomarkers, oral, progression)
+          supplementary files (visit, telemedicine, biomarkers, or oral)
         - If no supplementary files are provided or a patient has no activity in 
           supplementary files, duration may be null for censored patients
         
@@ -2621,6 +2691,15 @@ class DataProcessorColorectal:
             raise ValueError('index_date_column not found in index_date_df')
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2654,8 +2733,8 @@ class DataProcessorColorectal:
             patient_last_dates = []
 
             # Determine last EHR data
-            if all(path is None for path in [visit_path, telemedicine_path, biomarkers_path, oral_path, progression_path]):
-                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarkers_path, oral_path, or progression_path must be provided to calculate duration for those with a missing death date")
+            if all(path is None for path in [visit_path, telemedicine_path, biomarkers_path, oral_path]):
+                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarkers_path, or oral_path must be provided to calculate duration for those with a missing death date")
             else: 
                 # Process visit and telemedicine data
                 if visit_path is not None or telemedicine_path is not None:
@@ -2722,26 +2801,6 @@ class DataProcessorColorectal:
                         patient_last_dates.append(df_oral_max)
                     except Exception as e:
                         logging.error(f"Error reading Enhanced_MetCRC_Orals.csv file: {e}")
-
-                # Process progression data
-                if progression_path is not None:
-                    try: 
-                        df_progression = pd.read_csv(progression_path)
-                        df_progression['ProgressionDate'] = pd.to_datetime(df_progression['ProgressionDate'])
-                        df_progression['LastClinicNoteDate'] = pd.to_datetime(df_progression['LastClinicNoteDate'])
-
-                        df_progression_max = (
-                            df_progression
-                            .query("PatientID in @index_date_df.PatientID")
-                            .assign(max_date=lambda x: x[['ProgressionDate', 'LastClinicNoteDate']].max(axis=1))
-                            .groupby('PatientID')['max_date']
-                            .max()
-                            .to_frame(name='last_progression_date')
-                            .reset_index()
-                        )
-                        patient_last_dates.append(df_progression_max)
-                    except Exception as e:
-                        logging.error(f"Error reading Enhanced_MetCRC_Progression.csv file: {e}")
 
                 # Combine all last activity dates
                 if patient_last_dates:

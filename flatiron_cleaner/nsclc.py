@@ -580,6 +580,15 @@ class DataProcessorNSCLC:
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
         
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
+        
         try:
             df = pd.read_csv(file_path)
             logging.info(f"Successfully read Demographics.csv file with shape: {df.shape} and unique PatientIDs: {(df['PatientID'].nunique())}")
@@ -804,6 +813,15 @@ class DataProcessorNSCLC:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1032,6 +1050,15 @@ class DataProcessorNSCLC:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1224,6 +1251,15 @@ class DataProcessorNSCLC:
             raise ValueError("vital_summary_lookback must be a non-negative integer")
         if not isinstance(abnormal_reading_threshold, int) or abnormal_reading_threshold < 1:
             raise ValueError("abnormal_reading_threshold must be an integer ≥1")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path, low_memory = False)
@@ -1543,6 +1579,15 @@ class DataProcessorNSCLC:
         valid_strategies = ['conservative', 'liberal']
         if missing_date_strategy not in valid_strategies:
             raise ValueError("missing_date_strategy must be 'conservative' or 'liberal'")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1825,6 +1870,15 @@ class DataProcessorNSCLC:
             raise ValueError("days_after must be a non-negative integer")
         if not isinstance(summary_lookback, int) or summary_lookback < 0:
             raise ValueError("summary_lookback must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
         
         # Add user-provided mappings if they exist
         if additional_loinc_mappings is not None:
@@ -2198,6 +2252,15 @@ class DataProcessorNSCLC:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2481,6 +2544,15 @@ class DataProcessorNSCLC:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2653,15 +2725,15 @@ class DataProcessorNSCLC:
         index_date_column : str
             Column name in index_date_df containing the index date
         visit_path : str
-            Path to Visit.csv file, used to determine last EHR activity date for censored patients
+            Path to Visit.csv file, using VisitDate to determine last EHR activity date for censored patients
         telemedicine_path : str
-            Path to Telemedicine.csv file, used to determine last EHR activity date for censored patients
+            Path to Telemedicine.csv file, using VisitDate to determine last EHR activity date for censored patients
         biomarkers_path : str
-            Path to Enhanced_AdvNSCLCBiomarkers.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_AdvNSCLCBiomarkers.csv file, using SpecimenCollectedDate to determine last EHR activity date for censored patients
         oral_path : str
-            Path to Enhanced_AdvNSCLC_Orals.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_AdvNSCLC_Orals.csv file, using StartDate and EndDate to determine last EHR activity date for censored patients
         progression_path : str
-            Path to Enhanced_AdvNSCLC_Progression.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_AdvNSCLC_Progression.csv file, using ProgresionDate and LastClinicNoteDate to determine last EHR activity date for censored patients
         drop_dates : bool, default = True
             If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
@@ -2696,7 +2768,7 @@ class DataProcessorNSCLC:
         Censoring logic:
         - Patients without death dates are censored at their last EHR activity
         - Last EHR activity is determined as the maximum date across all provided
-          supplementary files (visit, telemedicine, biomarkers, oral, progression)
+          supplementary files (visit, telemedicine, biomarkers, oral, or progression)
         - If no supplementary files are provided or a patient has no activity in 
           supplementary files, duration may be null for censored patients
         
@@ -2713,6 +2785,15 @@ class DataProcessorNSCLC:
             raise ValueError('index_date_column not found in index_date_df')
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)

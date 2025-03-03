@@ -541,6 +541,15 @@ class DataProcessorProstate:
                 raise ValueError('index_date_column not found in index_date_df')
             if index_date_df['PatientID'].duplicated().any():
                 raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+            
+            index_date_df = index_date_df.copy()
+            # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+            for col in index_date_df.columns:
+                if col != 'PatientID':  # Keep PatientID unchanged for merging
+                    index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+            # Update index_date_column name
+            index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -731,6 +740,15 @@ class DataProcessorProstate:
             raise ValueError('index_date_column not found in index_date_df')
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -938,6 +956,15 @@ class DataProcessorProstate:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1086,6 +1113,15 @@ class DataProcessorProstate:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1278,6 +1314,15 @@ class DataProcessorProstate:
             raise ValueError("vital_summary_lookback must be a non-negative integer")
         if not isinstance(abnormal_reading_threshold, int) or abnormal_reading_threshold < 1:
             raise ValueError("abnormal_reading_threshold must be an integer ≥1")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path, low_memory = False)
@@ -1597,6 +1642,15 @@ class DataProcessorProstate:
         valid_strategies = ['conservative', 'liberal']
         if missing_date_strategy not in valid_strategies:
             raise ValueError("missing_date_strategy must be 'conservative' or 'liberal'")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -1885,6 +1939,15 @@ class DataProcessorProstate:
             raise ValueError("days_after must be a non-negative integer")
         if not isinstance(summary_lookback, int) or summary_lookback < 0:
             raise ValueError("summary_lookback must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
         
         # Add user-provided mappings if they exist
         if additional_loinc_mappings is not None:
@@ -2299,6 +2362,15 @@ class DataProcessorProstate:
             raise ValueError("days_before must be a non-negative integer")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2581,6 +2653,15 @@ class DataProcessorProstate:
                 raise ValueError("days_before must be a non-negative integer or None")
         if not isinstance(days_after, int) or days_after < 0:
             raise ValueError("days_after must be a non-negative integer")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2739,6 +2820,11 @@ class DataProcessorProstate:
                           telemedicine_path: str = None, 
                           biomarkers_path: str = None, 
                           oral_path: str = None,
+                          adt_path: str = None,
+                          alpha_beta_emitters_path: str = None, 
+                          primary_treatment_path: str = None,
+                          provenge_path: str = None,
+                          enhanced_path: str = None,
                           drop_dates: bool = True) -> Optional[pd.DataFrame]:
         """
         Processes Enhanced_Mortality_V2.csv by cleaning data types, calculating time from index date to death/censor, and determining mortality events. 
@@ -2752,13 +2838,23 @@ class DataProcessorProstate:
         index_date_column : str
             Column name in index_date_df containing the index date
         visit_path : str
-            Path to Visit.csv file, used to determine last EHR activity date for censored patients
+            Path to Visit.csv file, using VisitDate to determine last EHR activity date for censored patients
         telemedicine_path : str
-            Path to Telemedicine.csv file, used to determine last EHR activity date for censored patients
+            Path to Telemedicine.csv file, using VisitDate to determine last EHR activity date for censored patients
         biomarkers_path : str
-            Path to Enhanced_MetBreastBiomarkers.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetPC_Biomarkers.csv file, using SpecimenCollectedDate to determine last EHR activity date for censored patients
         oral_path : str
-            Path to Enhanced_MetBreast_Orals.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_MetPC_Orals.csv file, using StartDate and EndDate to determine last EHR activity date for censored patients
+        adt_path : str
+            Path to Enhanced_MetPC_ADT.csv file, using StartDate and EndDate to determine last EHR activity date for censored patients 
+        alpha_beta_emitters_path : str
+            Path to Enhanced_MetPC_AlphaBetaEmitters.csv file, using AdministrationDate to determine last EHR activity date for censored patients 
+        primary_treatment_path : str
+            Path to Enhanced_MetPC_PrimaryTreatment.csv file, using TreatmentDate to determine last EHR activity date for censored patients 
+        provenge_path : str
+            Path to Enhanced_MetPC_Provenge.csv file, using StartDate to determine last EHR activity date for censored patients
+        enhanced_path : str
+            Path to Enhanced_MetProstate.csv file, using CRPCDate to determine last EHR activity date for censored patients
         drop_dates : bool, default = True
             If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
@@ -2793,7 +2889,8 @@ class DataProcessorProstate:
         Censoring logic:
         - Patients without death dates are censored at their last EHR activity
         - Last EHR activity is determined as the maximum date across all provided
-          supplementary files (visit, telemedicine, biomarkers, and oral)
+          supplementary files (visit, telemedicine, biomarkers, oral, ADT, alpha beta emitters, 
+          primary treatment, provenge, and enhanced)
         - If no supplementary files are provided or a patient has no activity in 
           supplementary files, duration may be null for censored patients
         
@@ -2810,6 +2907,15 @@ class DataProcessorProstate:
             raise ValueError('index_date_column not found in index_date_df')
         if index_date_df['PatientID'].duplicated().any():
             raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
 
         try:
             df = pd.read_csv(file_path)
@@ -2843,8 +2949,8 @@ class DataProcessorProstate:
             patient_last_dates = []
 
             # Determine last EHR data
-            if all(path is None for path in [visit_path, telemedicine_path, biomarkers_path, oral_path]):
-                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarkers_path, or oral_path must be provided to calculate duration for those with a missing death date")
+            if all(path is None for path in [visit_path, telemedicine_path, biomarkers_path, oral_path, adt_path, alpha_beta_emitters_path, primary_treatment_path, provenge_path, enhanced_path]):
+                logging.info("WARNING: At least one of visit_path, telemedicine_path, biomarkers_path, oral_path must, adt_path, alpha_beta_emitters_path, primary_treatment_path, provenge_path, or enhanced_path must be provided to calculate duration for those with a missing death date")
             else: 
                 # Process visit and telemedicine data
                 if visit_path is not None or telemedicine_path is not None:
@@ -2890,7 +2996,7 @@ class DataProcessorProstate:
                         )
                         patient_last_dates.append(df_biomarkers_max)
                     except Exception as e:
-                        logging.error(f"Error reading Enhanced_MetBreastBiomarkers.csv file: {e}")
+                        logging.error(f"Error reading Enhanced_MetPC_Biomarkers.csv file: {e}")
 
                 # Process oral medication data
                 if oral_path is not None:
@@ -2910,7 +3016,96 @@ class DataProcessorProstate:
                         )
                         patient_last_dates.append(df_oral_max)
                     except Exception as e:
-                        logging.error(f"Error reading Enhanced_MetBreast_Orals.csv file: {e}")
+                        logging.error(f"Error reading Enhanced_MetPC_Orals.csv file: {e}")
+                
+                # Process ADT data
+                if adt_path is not None:
+                    try:
+                        df_adt = pd.read_csv(adt_path)
+                        df_adt['StartDate'] = pd.to_datetime(df_adt['StartDate'])
+                        df_adt['EndDate'] = pd.to_datetime(df_adt['EndDate'])
+
+                        df_adt_max = (
+                            df_adt
+                            .query("PatientID in @index_date_df.PatientID")
+                            .assign(max_date=lambda x: x[['StartDate', 'EndDate']].max(axis=1))
+                            .groupby('PatientID')['max_date']
+                            .max()
+                            .to_frame(name='last_adt_date')
+                            .reset_index()
+                        )
+                        patient_last_dates.append(df_adt_max)
+                    except Exception as e:
+                        logging.error(f"Error reading Enhanced_MetPC_ADT.csv file: {e}")
+
+                # Process alpha beta emitters data
+                if alpha_beta_emitters_path is not None:
+                    try:
+                        df_abe = pd.read_csv(alpha_beta_emitters_path)
+                        df_abe['AdministrationDate'] = pd.to_datetime(df_abe['AdministrationDate'])
+
+                        df_abe_max = (
+                            df_abe
+                            .query("PatientID in @index_date_df.PatientID")
+                            .groupby('PatientID')['AdministrationDate']
+                            .max()
+                            .to_frame(name='last_abe_date')
+                            .reset_index()
+                        )
+                        patient_last_dates.append(df_abe_max)
+                    except Exception as e:
+                        logging.error(f"Error reading Enhanced_MetPC_AlphaBetaEmitters.csv file: {e}")
+                
+                # Process primary treatment data
+                if primary_treatment_path is not None:
+                    try:
+                        df_pt = pd.read_csv(primary_treatment_path)
+                        df_pt['TreatmentDate'] = pd.to_datetime(df_pt['TreatmentDate'])
+
+                        df_pt_max = (
+                            df_pt
+                            .query("PatientID in @index_date_df.PatientID")
+                            .groupby('PatientID')['TreatmentDate']
+                            .max()
+                            .to_frame(name='last_primary_treatment_date')
+                            .reset_index()
+                        )
+                        patient_last_dates.append(df_pt_max)
+                    except Exception as e:
+                        logging.error(f"Error reading Enhanced_MetPC_PrimaryTreatment.csv file: {e}")
+
+                # Process provenge data
+                if provenge_path is not None:
+                    try:
+                        df_provenge = pd.read_csv(provenge_path)
+                        df_provenge['StartDate'] = pd.to_datetime(df_provenge['StartDate'])
+
+                        df_provenge_max = (
+                            df_provenge
+                            .query("PatientID in @index_date_df.PatientID")
+                            .groupby('PatientID')['StartDate']
+                            .max()
+                            .to_frame(name='last_provenge_date')
+                            .reset_index()
+                        )
+                        patient_last_dates.append(df_provenge_max)
+                    except Exception as e:
+                        logging.error(f"Error reading Enhanced_MetPC_Provenge.csv file: {e}")
+
+                # Process enhanced data
+                if enhanced_path is not None:
+                    try:
+                        df_enhanced = pd.read_csv(enhanced_path)
+                        df_enhanced['CRPCDate'] = pd.to_datetime(df_enhanced['CRPCDate'])
+
+                        df_enhanced_max = (
+                            df_enhanced
+                            .query("PatientID in @index_date_df.PatientID")
+                            [['PatientID', 'CRPCDate']]
+                        )
+                        patient_last_dates.append(df_enhanced_max)
+                    except Exception as e:
+                        logging.error(f"Error reading Enhanced_MetProstate.csv file: {e}")
 
                 # Combine all last activity dates
                 if patient_last_dates:

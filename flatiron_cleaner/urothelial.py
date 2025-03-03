@@ -834,15 +834,15 @@ class DataProcessorUrothelial:
         index_date_column : str
             Column name in index_date_df containing the index date
         visit_path : str
-            Path to Visit.csv file, used to determine last EHR activity date for censored patients
+            Path to Visit.csv file, using VisitDate to determine last EHR activity date for censored patients
         telemedicine_path : str
-            Path to Telemedicine.csv file, used to determine last EHR activity date for censored patients
+            Path to Telemedicine.csv file, using VisitDate to determine last EHR activity date for censored patients
         biomarkers_path : str
-            Path to Enhanced_AdvUrothelialBiomarkers.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_AdvUrothelialBiomarkers.csv file, using SpecimenCollectedDate to determine last EHR activity date for censored patients
         oral_path : str
-            Path to Enhanced_AdvUrothelial_Orals.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_AdvUrothelial_Orals.csv file, using StartDate and EndDate to determine last EHR activity date for censored patients
         progression_path : str
-            Path to Enhanced_AdvUrothelial_Progression.csv file, used to determine last EHR activity date for censored patients
+            Path to Enhanced_AdvUrothelial_Progression.csv file, using ProgresionDate and LastClinicNoteDate to determine last EHR activity date for censored patients
         drop_dates : bool, default = True
             If True, drops date columns (index_date_column, DateOfDeath, last_ehr_date)   
         
