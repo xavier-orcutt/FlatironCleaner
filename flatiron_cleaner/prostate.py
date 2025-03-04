@@ -435,6 +435,7 @@ class DataProcessorProstate:
         self.medications_df = None
         self.diagnosis_df = None
         self.mortality_df = None
+        self.adt_df = None
 
     def process_enhanced(self,
                          file_path: str,
@@ -442,6 +443,7 @@ class DataProcessorProstate:
                          patient_ids: list = None,
                          index_date_df: pd.DataFrame = None,
                          primary_treatment_path: str = None, 
+
                          drop_stages: bool = True,
                          drop_dates: bool = True) -> Optional[pd.DataFrame]: 
         """
@@ -3192,4 +3194,103 @@ class DataProcessorProstate:
 
         except Exception as e:
             logging.error(f"Error processing Enhanced_Mortality_V2.csv file: {e}")
+            return None
+    
+    def process_adt(self,
+                    file_path: str,
+                    index_date_df: pd.DataFrame,
+                    index_date_column: str) -> Optional[pd.DataFrame]:
+        """
+        Processes Enhanced_MetPC_ADT.csv by determining if recipt of ADT occurred prior to index date of interest. 
+
+        Parameters
+        ----------
+        file_path : str
+            Path to Enhanced_MetPC_ADT.csv file
+        index_date_df : pd.DataFrame
+            DataFrame containing unique PatientIDs and their corresponding index dates. Only treatment data for PatientIDs present in this DataFrame will be processed
+        index_date_column : str
+            Column name in index_date_df containing the index date
+        
+        Returns
+        -------
+        pd.DataFrame or None
+            - PatientID : object
+                unique patient identifier
+            - received_adt : Int64
+                binary indicator (0/1) for recepit of ADT prior to index date 
+            
+        Notes
+        ------
+        - With >90% EndDate missing in the have a missing in the Enhanced_MetPC_ADT.csv file, predicting presence of ADT at time of index date or duration 
+        of ADT is difficult and unreliable. Given this constraint, these calculations were not pursued since significant assumptions would need to be made. 
+        - Missing StartDate was imputed with EndDate, if available.
+
+        Output handling: 
+        - Duplicate PatientIDs are logged as warnings if found but retained in output
+        - Processed DataFrame is stored in self.adt_df
+        """
+        # Input validation
+        if not isinstance(index_date_df, pd.DataFrame):
+            raise ValueError("index_date_df must be a pandas DataFrame")
+        if 'PatientID' not in index_date_df.columns:
+            raise ValueError("index_date_df must contain a 'PatientID' column")
+        if not index_date_column or index_date_column not in index_date_df.columns:
+            raise ValueError('index_date_column not found in index_date_df')
+        if index_date_df['PatientID'].duplicated().any():
+            raise ValueError("index_date_df contains duplicate PatientID values, which is not allowed")
+        
+        index_date_df = index_date_df.copy()
+        # Rename all columns from index_date_df except PatientID to avoid conflicts with merging and processing 
+        for col in index_date_df.columns:
+            if col != 'PatientID':  # Keep PatientID unchanged for merging
+                index_date_df.rename(columns={col: f'imported_{col}'}, inplace=True)
+
+        # Update index_date_column name
+        index_date_column = f'imported_{index_date_column}'
+
+        try:
+            df_adt = pd.read_csv(file_path)
+            df_adt['StartDate'] = pd.to_datetime(df_adt['StartDate'])
+            df_adt['EndDate'] = pd.to_datetime(df_adt['EndDate'])
+
+            # Impute EndDate for missing StartDate
+            df_adt['StartDate'] = np.where(df_adt['StartDate'].isna(), df_adt['EndDate'], df_adt['StartDate'])
+
+            index_date_df[index_date_column] = pd.to_datetime(index_date_df[index_date_column])
+
+            # Select PatientIDs that are included in the index_date_df the merge on 'left'
+            df_adt = df_adt[df_adt.PatientID.isin(index_date_df.PatientID)]
+            df_adt = pd.merge(
+                df_adt,
+                index_date_df[['PatientID', index_date_column]], 
+                on = 'PatientID',
+                how = 'left'
+            )
+
+            # Create df for recepit of ADT relative to index date 
+            ever_received_adt_df = (
+                df_adt
+                .assign(ever_received_adt = lambda x: np.where(x['StartDate'] <= x[index_date_column], 1, 0))
+                .groupby('PatientID')['ever_received_adt']
+                .max()
+                .reset_index()
+            )
+
+            # Merge dataframes - start with index_date_df to ensure all PatientIDs are included
+            final_df = index_date_df[['PatientID']].copy()
+            final_df = pd.merge(final_df, ever_received_adt_df, on = 'PatientID', how = 'left')
+            final_df['ever_received_adt'] = final_df['ever_received_adt'].astype('Int64')
+          
+            # Check for duplicate PatientIDs
+            if len(final_df) > final_df['PatientID'].nunique():
+                duplicate_ids = final_df[final_df.duplicated(subset=['PatientID'], keep=False)]['PatientID'].unique()
+                logging.warning(f"Duplicate PatientIDs found: {duplicate_ids}")
+
+            logging.info(f"Successfully processed Enhanced_MetPC_ADT.csv file with final shape: {final_df.shape} and unique PatientIDs: {final_df['PatientID'].nunique()}")
+            self.adt_df = final_df
+            return final_df
+
+        except Exception as e:
+            logging.error(f"Error processing Enhanced_MetPC_ADT.csv file: {e}")
             return None
