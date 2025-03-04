@@ -441,6 +441,7 @@ class DataProcessorProstate:
                          index_date_column: str = 'MetDiagnosisDate',
                          patient_ids: list = None,
                          index_date_df: pd.DataFrame = None,
+                         primary_treatment_path: str = None, 
                          drop_stages: bool = True,
                          drop_dates: bool = True) -> Optional[pd.DataFrame]: 
         """
@@ -463,6 +464,8 @@ class DataProcessorProstate:
             List of specific PatientIDs to process. If None, processes all patients
         index_date_df : pd.DataFrame, optional 
             DataFrame containing unique PatientIDs and their corresponding index dates. Only data for PatientIDs present in this DataFrame will be processed
+        primary_treatment_path : str, optional 
+            Path to Enhanced_MetPC_PrimaryTreatment.csv file which is used to calculate time from diagnosis to primary treatment 
         drop_stages : bool, default=True
             If True, drops original staging columns (GroupStage, TStage, and MStage) after creating modified versions
         drop_dates : bool, default=True
@@ -489,6 +492,10 @@ class DataProcessorProstate:
                 days from first diagnosis to metastatic disease 
             - met_diagnosis_year : category
                 year of metastatic diagnosis 
+            - TreatmentType_mod : cateogry
+                consolidation primary treatments (surgery, radiation, and other), if Enhanced_MetPC_PrimaryTreatment.csv file is included as parameter
+            - days_diagnosis_to_primary_treatment : float 
+                days from first diagnosis to primary treatment, if Enhanced_MetPC_PrimaryTreatment.csv file is included as parameter
             - IsCRPC_index : Int64
                 binary (0/1) indicator for CRPC, determined by whether CRPC date is earlier than the index date 
             - days_diagnosis_to_crpc : float
@@ -502,7 +509,7 @@ class DataProcessorProstate:
             - psa_velocity_diag_met : float, ng/mL/month
                 PSA velocity from first diagnosis to metastatic disease for those with both a PSA at time of first and metastatic diagnosis
 
-            Original date columns (DiagnosisDate, MetDiagnosisDate, and CRPCDate) retained if drop_dates = False
+            Original date columns (DiagnosisDate, MetDiagnosisDate, CRPCDate, and TreatmentDate) retained if drop_dates = False
 
         Notes
         -----
@@ -512,6 +519,11 @@ class DataProcessorProstate:
 
         Notable Gleanson score consolidation decisions: 
             - 7 (when breakdown not available) was placed into Grade Group 3
+
+        If days_diagnosis_to_primary_treatment is < 0, the value is set to 0; otherwise, the value is left as is. 
+        Cases where days_diagnosis_to_primary_treatment is < 0 occur when the date of surgery is set to the first of the year 
+        and likely reflects uknown exact date of primary treatment. By setting these cases to 0, we'll presume that the 
+        primary treatment date occurred on the diagnosis date. 
 
         PSA doubling time calculation:
             - Only calculated for patients with PSA values at both initial diagnosis and metastatic diagnosis
@@ -611,6 +623,30 @@ class DataProcessorProstate:
             # Generate new time-based variables 
             df['days_diagnosis_to_met'] = (df['MetDiagnosisDate'] - df['DiagnosisDate']).dt.days
             df['met_diagnosis_year'] = pd.Categorical(df['MetDiagnosisDate'].dt.year)
+
+            if primary_treatment_path is not None: 
+                try: 
+                    primary_treatment_df = pd.read_csv(primary_treatment_path)
+                    logging.info(f"Successfully read Enhanced_MetPC_PrimaryTreatment.csv file with shape: {primary_treatment_df.shape} and unique PatientIDs: {(primary_treatment_df['PatientID'].nunique())}")
+
+                    df = pd.merge(df,primary_treatment_df, on = 'PatientID', how = 'left')
+                    df['TreatmentDate'] = pd.to_datetime(df['TreatmentDate'])
+                    df['days_diagnosis_to_primary_treatment'] = (df['TreatmentDate'] - df['DiagnosisDate']).dt.days
+            
+                    # For those with value <0, set to 0; otherwise, leave as is
+                    df['days_diagnosis_to_primary_treatment'] = np.where(df['days_diagnosis_to_primary_treatment'] < 0, 0, df['days_diagnosis_to_primary_treatment'])
+
+                    df['TreatmentType_mod'] = np.where((df['TreatmentType'] == 'Cryotherapy') | (df['TreatmentType'] == 'High Intensity Focused Ultrasound (HIFU)'), 
+                                                       'other',
+                                                       df['TreatmentType'])
+                    
+                    df = df.drop(columns = ['TreatmentType'])
+
+                    if drop_dates:
+                        df = df.drop(columns = ['TreatmentDate'])
+
+                except Exception as e:
+                    logging.error(f"Error processing Enhanced_MetPC_PrimaryTreatment.csv: {e}") 
 
             # Generate IsCRPC_index where 1 if CRPCDate is less than or equal to index date 
             # Calculate time from diagnosis to CRPC (presuming before metastatic diagnosis or index)

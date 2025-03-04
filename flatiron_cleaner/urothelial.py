@@ -521,6 +521,11 @@ class DataProcessorUrothelial:
             - Ta and Tis : 'nmibc' (Non-muscle invasive disease)
             - T0, TX, Unknown/not documented : 'other' 
 
+        If days_diagnosis_to_surgery is < 0, the value is set to 0; otherwise, the value is left as is. 
+        Cases where days_diagnosis_to_surgery is < 0 occur when the date of surgery is set to the first of the year 
+        and likely reflects uknown exact date of surgery. By setting these cases to 0, we'll presume that the 
+        surgery date occurred on the diagnosis date. 
+
         Output handling:
         - Duplicate PatientIDs are logged as warnings if found but reatained in output
         - Processed DataFrame is stored in self.enhanced_df
@@ -575,12 +580,15 @@ class DataProcessorUrothelial:
                 df[col] = pd.to_datetime(df[col])
             
             # Convert boolean column to binary (0/1)
-            df['Surgery'] = df['Surgery'].astype(int)
+            df['Surgery'] = df['Surgery'].astype('Int64')
 
             # Generate new variables 
             df['days_diagnosis_to_adv'] = (df['AdvancedDiagnosisDate'] - df['DiagnosisDate']).dt.days
             df['adv_diagnosis_year'] = pd.Categorical(df['AdvancedDiagnosisDate'].dt.year)
             df['days_diagnosis_to_surgery'] = (df['SurgeryDate'] - df['DiagnosisDate']).dt.days
+            
+            # For those with value <0, set to 0; otherwise, leave as is
+            df['days_diagnosis_to_surgery'] = np.where(df['days_diagnosis_to_surgery'] < 0, 0, df['days_diagnosis_to_surgery'])
     
             if drop_dates:
                 df = df.drop(columns = ['AdvancedDiagnosisDate', 'DiagnosisDate', 'SurgeryDate'])
