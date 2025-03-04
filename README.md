@@ -19,13 +19,13 @@ Coming soon.
 
 The following cancers have their own dedicated data processor class:
 
-| Cancer Type | Processor Name | Status |
-|-------------|-----------------|--------|
-| Advanced Urothelial Cancer | `DataProcessorUrothelial` | Available |
-| Advanced NSCLC | `DataProcessorNSCLC` | Available |
-| Metastatic Colorectal Cancer | `DataProcessorColorectal` | Available |
-| Metastatic Breast Cancer | `DataProcessorBreast` | Available |
-| Metastatic Prostate Cancer | `DataProcessorProstate` | In Development |
+| Cancer Type | Processor Name | 
+|-------------|-----------------|
+| Advanced Urothelial Cancer | `DataProcessorUrothelial` |
+| Advanced NSCLC | `DataProcessorNSCLC` |
+| Metastatic Colorectal Cancer | `DataProcessorColorectal` |
+| Metastatic Breast Cancer | `DataProcessorBreast` |
+| Metastatic Prostate Cancer | `DataProcessorProstate` |
 
 ### General Processor (Coming Soon)
 
