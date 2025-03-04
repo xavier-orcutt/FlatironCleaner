@@ -43,6 +43,6 @@ dependencies = [
 "Bug Tracker" = "https://github.com/xavier-orcutt/FlatironCleaner/issues"
 "Documentation" = "https://github.com/xavier-orcutt/FlatironCleaner#readme"
 
-[tool.setuptools]
-packages = ["flatiron_cleaner"]
-exclude = ["example", "example.*"]
+[tool.setuptools.packages.find]
+include = ["flatiron_cleaner*"]
+exclude = ["examples*"]
