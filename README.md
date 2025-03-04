@@ -4,7 +4,7 @@
 
 Key features of the package include:
 - Providing a modular architecture that allows researchers to select which Flatiron files to process
-- Converting long-format dataframes (with multiple rows per patient) into wide-format dataframes with unique PatientIDs per row
+- Converting long-format dataframes into wide-format dataframes with unique PatientIDs per row
 - Ensuring appropriate data types for predictive modeling and statistical analysis
 - Standardizing data cleaning around a user-specified index date, such as metastatic diagnosis or treatment initiation
 - Engineering clinically relevant variables for analysis
@@ -27,7 +27,7 @@ The following cancers have their own dedicated data processor class:
 | Metastatic Breast Cancer | `DataProcessorBreast` |
 | Metastatic Prostate Cancer | `DataProcessorProstate` |
 
-### General Processor (Coming Soon)
+### General Processor 
 
 For cancer types without a dedicated processor, `DataProcessorGeneral` is available with standard methods. 
 
