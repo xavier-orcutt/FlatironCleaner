@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flatiron_cleaner"
+version = "0.1.0"
+description = "A Python package for cleaning and harmonizing Flatiron Health cancer data"
+readme = "README.md"
+authors = [
+    {name = "Xavier Orcutt", email = "xavierorcutt@gmail.com"}
+]
+license = {text = "MIT"}  
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+keywords = ["cancer", "healthcare", "data", "flatiron"]
+
+dependencies = [
+    "numpy>=2.2.0",
+    "pandas>=2.2.0",
+    "python-dateutil>=2.9.0",
+    "pytz>=2024.2",
+    "tzdata>=2025.1",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/xavier-orcutt/FlatironCleaner"
+"Bug Tracker" = "https://github.com/xavier-orcutt/FlatironCleaner/issues"
+"Documentation" = "https://github.com/xavier-orcutt/FlatironCleaner#readme"
+
+[tool.setuptools]
+packages = ["flatiron_cleaner"]
+exclude = ["example", "example.*"]

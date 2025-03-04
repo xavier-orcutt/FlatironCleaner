@@ -1,8 +1,7 @@
 """
 FlatironCleaner
 
-A Python package for cleaning and harmonizing Flatiron Health cancer data
-structured around specified index dates of interest.
+A Python package for cleaning and harmonizing Flatiron Health cancer data.
 """
 
 __version__ = '0.1.0'
