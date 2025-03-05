@@ -11,7 +11,12 @@ Key features of the package include:
 
 ## Installation
 
-Coming soon. 
+Requires python >= 3.10
+
+```python
+pip install flatiron-cleaner 
+
+```
 
 ## Available Processors
 

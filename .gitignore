@@ -13,3 +13,9 @@ example/Untitled.ipynb
 example/tutorial_ignore.ipynb
 flatiron_cleaner/test.py
 flatiron_cleaner/main.py
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
