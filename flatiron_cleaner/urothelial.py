@@ -494,8 +494,6 @@ class DataProcessorUrothelial:
                 binary indicator (0/1) for whether patient had surgery
             - SurgeryType_mod : category
                 consolidated surgery type
-            - days_diagnosis_to_surgery : float
-                days from first diagnosis to surgery
             - DiseaseGrade : category
                 tumor grade (high, low, and unknown) at time of first diagnosis
             - GroupStage_mod : category
@@ -1837,7 +1835,7 @@ class DataProcessorUrothelial:
         - Imputation strategy for lab values:
             - For each lab, missing TestResultCleaned values are imputed from TestResult after removing flags (L, H, <, >)
             - Values outside physiological ranges for each lab are filtered out
-        -Unit conversion corrections:
+        - Unit conversion corrections:
             - Hemoglobin: Values in g/uL are divided by 100,000 to convert to g/dL
             - WBC/Platelet: Values in 10*3/L are multiplied by 1,000,000; values in /mm3 or 10*3/mL are multiplied by 1,000
             - Creatinine/BUN/Calcium: Values in mg/L are multiplied by 10 to convert to mg/dL
