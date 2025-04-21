@@ -86,7 +86,7 @@ cleaned_ecog_df = processor.process_ecog('path/to/your/ECOG.csv',
                                          days_after=0)                  
 
 cleaned_medication_df = processor.process_medications('path/to/your/MedicationAdmninistration.csv',
-                                                      index_date_df = df,
+                                                      index_date_df=df,
                                                       index_date_column='AdvancedDiagnosisDate',
                                                       days_before=180,
                                                       days_after=0)
@@ -99,4 +99,4 @@ For a more detailed usage demonstration, see the notebook titled "tutorial" in t
 
 ## Contact
 
-I welcome contributions and feedback. Email me at: xavierorcutt@gmail.com
+Contributions and feedback are welcome. Contact: xavierorcutt@gmail.com
