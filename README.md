@@ -1,6 +1,6 @@
 # FlatironCleaner
 
-`FlatironCleaner` is a Python package that cleans Flatiron Health cancer datasets into analysis-ready formats, specifically designed with predictive modeling and survival analysis in mind. By automating complex and tedious data processing workflows, it helps researchers extract meaningful insights and ensure reproducible results while reducing preparation time.
+`flatiron-cleaner` is a Python package that cleans Flatiron Health cancer datasets into analysis-ready formats, specifically designed with predictive modeling and survival analysis in mind. By automating complex and tedious data processing workflows, it helps researchers extract meaningful insights and ensure reproducible results while reducing preparation time.
 
 Key features of the package include:
 - Providing a modular architecture that allows researchers to select which Flatiron files to process
