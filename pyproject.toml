@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flatiron_cleaner"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python package for cleaning and harmonizing Flatiron Health cancer data"
 readme = "README.md"
 authors = [
